@@ -65,7 +65,7 @@
 ### Structure du Projet
 
 ```
-netadmin-pro/
+NetAdmin/
 ├── backend/                    # API Node.js/Express
 │   ├── src/
 │   │   ├── config/            # Configuration (DB, LDAP, JWT)
@@ -190,8 +190,8 @@ netadmin-pro/
 
 ```bash
 # 1. Cloner le projet
-git clone https://github.com/votre-username/netadmin-pro.git
-cd netadmin-pro
+git clone https://github.com/aruffin963/netadmin.git
+cd NetAdmin
 
 # 2. Configurer la base de données
 psql -U postgres
@@ -364,7 +364,7 @@ Nous utilisons [Conventional Commits](https://www.conventionalcommits.org/) :
 
 Si vous découvrez une faille de sécurité, merci de nous contacter directement à `security@votredomaine.com` plutôt que d'ouvrir une issue publique.
 
-## � Roadmap
+##  Roadmap
 
 ### Version 1.1 (Q1 2026)
 - [ ] Dashboard personnalisable
@@ -387,7 +387,7 @@ Si vous découvrez une faille de sécurité, merci de nous contacter directement
 
 ## 🏆 Crédits
 
-Développé avec ❤️ par l'équipe NetAdmin Pro
+Développé avec ❤️ par l'équipe NetAdmin
 
 ### Technologies Utilisées
 
@@ -420,19 +420,18 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 ```
 
-## � Support & Contact
+## Support & Contact
 
-- **Issues** : [GitHub Issues](https://github.com/votre-username/netadmin-pro/issues)
-- **Documentation** : [Wiki](https://github.com/votre-username/netadmin-pro/wiki)
-- **Email** : support@votredomaine.com
-- **Discord** : [Rejoindre le serveur](https://discord.gg/votreserveur)
+- **Issues** : [GitHub Issues](https://github.com/aruffin963/NetAdmin/issues)
+- **Documentation** : [Wiki](https://github.com/aruffin963/NetAdmin/wiki)
+- **Email** : adononalex@gmail.com
 
 ---
 
 <div align="center">
 
-**[⬆ Retour en haut](#netadmin-pro-)**
+**[⬆ Retour en haut](#NetAdmin-)**
 
-Made with ❤️ by NetAdmin Pro Team
+Made with ❤️ by Alex Ruffin
 
 </div>
