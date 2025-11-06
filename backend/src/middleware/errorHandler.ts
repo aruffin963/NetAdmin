@@ -10,9 +10,9 @@ export const errorHandler = (
   err: AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
-  let { statusCode = 500, message } = err;
+  const { statusCode = 500, message } = err;
 
   // Log error
   logger.error(`Error ${statusCode}: ${message}`, {

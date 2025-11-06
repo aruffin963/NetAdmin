@@ -7,12 +7,10 @@ import { Request, Response, NextFunction } from 'express';
 import { TenantSettings } from '../../../shared/src/types/tenant';
 
 // Extension de l'interface Request pour inclure les infos tenant
-declare global {
-  namespace Express {
-    interface Request {
-      tenant?: TenantSettings;
-      tenantId?: string;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    tenant?: TenantSettings;
+    tenantId?: string;
   }
 }
 

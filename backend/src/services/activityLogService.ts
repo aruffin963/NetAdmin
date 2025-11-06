@@ -79,8 +79,8 @@ export class ActivityLogService {
         status
       } = options;
 
-      let whereConditions: string[] = [];
-      let params: any[] = [];
+      const whereConditions: string[] = [];
+      const params: any[] = [];
       let paramCount = 1;
 
       if (username) {
