@@ -24,12 +24,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
+
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-backend-${{ hashFiles('backend/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-backend-
 
     - name: Install dependencies
       working-directory: ./backend
-      run: npm ci
+      run: npm install
 
     - name: Lint code
       working-directory: ./backend
@@ -74,12 +80,18 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-frontend-${{ hashFiles('frontend/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-frontend-
 
     - name: Install dependencies
       working-directory: ./frontend
-      run: npm ci
+      run: npm install
 
     - name: Lint code
       working-directory: ./frontend
@@ -116,13 +128,21 @@ jobs:
       with:
         node-version: '20.x'
 
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-quality-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-quality-
+
     - name: Install dependencies (Backend)
       working-directory: ./backend
-      run: npm ci
+      run: npm install
 
     - name: Install dependencies (Frontend)
       working-directory: ./frontend
-      run: npm ci
+      run: npm install
 
     - name: Run ESLint (Backend)
       working-directory: ./backend
@@ -158,10 +178,26 @@ jobs:
       with:
         node-version: '20.x'
 
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-security-${{ hashFiles('**/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-security-
+
+    - name: Install dependencies (Backend)
+      working-directory: ./backend
+      run: npm install
+
     - name: Audit Backend dependencies
       working-directory: ./backend
       run: npm audit --audit-level=moderate
       continue-on-error: true
+
+    - name: Install dependencies (Frontend)
+      working-directory: ./frontend
+      run: npm install
 
     - name: Audit Frontend dependencies
       working-directory: ./frontend
