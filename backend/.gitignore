@@ -1,0 +1,50 @@
+# Backend specific
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Build outputs
+dist/
+build/
+*.js
+*.js.map
+!jest.config.js
+
+# TypeScript
+*.tsbuildinfo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+database.db
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/
+public/uploads/
+
+# Migrations backup
+migrations/*.backup
+
+# Session store
+sessions/
+
+# Tests
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+
+# Lock files (if using different package managers)
+# package-lock.json
+# yarn.lock

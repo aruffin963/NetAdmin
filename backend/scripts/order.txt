@@ -1,0 +1,6 @@
+quand la page gestionIp affiche aucun pool trouvé il faut qu'un bouton créer une
+organistion soit là 
+donc créer une organisation tu dois créer une route pour la création d'organisation et stocké
+dans la db
+quand l'organisation est créé on peut créer les pool 
+quand la pool est créer  il s'affiche directement à l'écran

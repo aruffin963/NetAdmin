@@ -1,0 +1,80 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+    - 'v*'
+  workflow_dispatch:
+
+
+jobs:
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    # Backend deployment
+    - name: Install Backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Build Backend
+      working-directory: ./backend
+      run: npm run build
+
+    # Frontend deployment
+    - name: Install Frontend dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build Frontend
+      working-directory: ./frontend
+      run: npm run build
+      env:
+        VITE_API_URL: ${{ secrets.API_URL }}
+
+    # Create deployment package
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r backend/dist deployment/backend
+        cp -r backend/package*.json deployment/backend/
+        cp -r backend/migrations deployment/backend/
+        cp -r frontend/dist deployment/frontend
+        tar -czf netadmin-${{ github.sha }}.tar.gz deployment/
+
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-package
+        path: netadmin-${{ github.sha }}.tar.gz
+        retention-days: 30
+    # Optional: Deploy to server via SSH
+    # - name: Deploy to server
+    #   uses: appleboy/scp-action@master
+    #   with:
+    #     host: ${{ secrets.DEPLOY_HOST }}
+    #     username: ${{ secrets.DEPLOY_USER }}
+    #     key: ${{ secrets.DEPLOY_KEY }}
+    #     source: "netadmin-${{ github.sha }}.tar.gz"
+    #     target: "/opt/deployments/"
+
+    # - name: Execute deployment script
+    #   uses: appleboy/ssh-action@master
+    #   with:
+    #     host: ${{ secrets.DEPLOY_HOST }}
+    #     username: ${{ secrets.DEPLOY_USER }}
+    #     key: ${{ secrets.DEPLOY_KEY }}
+    #     script: |
+    #       cd /opt/netadmin
+    #       ./deploy.sh ${{ github.sha }}

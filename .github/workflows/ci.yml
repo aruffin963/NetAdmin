@@ -1,0 +1,169 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Backend tests and build
+  backend:
+    name: Backend Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 18.x, 20.x ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Lint code
+      working-directory: ./backend
+      run: npm run lint --if-present
+
+    - name: Build TypeScript
+      working-directory: ./backend
+      run: npm run build
+
+    - name: Run tests
+      working-directory: ./backend
+      run: npm test --if-present
+      env:
+        NODE_ENV: test
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: netadmin_test
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-build-${{ matrix.node-version }}
+        path: backend/dist/
+        retention-days: 7
+
+  # Frontend tests and build
+  frontend:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 18.x, 20.x ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Lint code
+      working-directory: ./frontend
+      run: npm run lint --if-present
+
+    - name: Build application
+      working-directory: ./frontend
+      run: npm run build
+      env:
+        VITE_API_URL: http://localhost:5000/api
+
+    - name: Run tests
+      working-directory: ./frontend
+      run: npm test --if-present
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build-${{ matrix.node-version }}
+        path: frontend/dist/
+        retention-days: 7
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies (Backend)
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install dependencies (Frontend)
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Run ESLint (Backend)
+      working-directory: ./backend
+      run: npm run lint --if-present
+      continue-on-error: true
+
+    - name: Run ESLint (Frontend)
+      working-directory: ./frontend
+      run: npm run lint --if-present
+      continue-on-error: true
+
+    - name: Check TypeScript (Backend)
+      working-directory: ./backend
+      run: npx tsc --noEmit
+      continue-on-error: true
+
+    - name: Check TypeScript (Frontend)
+      working-directory: ./frontend
+      run: npx tsc --noEmit
+      continue-on-error: true
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Audit Backend dependencies
+      working-directory: ./backend
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
+
+    - name: Audit Frontend dependencies
+      working-directory: ./frontend
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
