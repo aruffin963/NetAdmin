@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
+import bcrypt from 'bcryptjs';
 import passport from '../config/passport';
 import { SessionService } from '../config/session';
 import { logger } from '../utils/logger';
@@ -7,6 +8,21 @@ import { ActivityLogService, LogActions, ResourceTypes } from '../services/activ
 
 const router = Router();
 const sessionService = SessionService.getInstance();
+
+// Super Admin Credentials
+const SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'admin';
+const SUPER_ADMIN_PASSWORD_HASH = process.env.SUPER_ADMIN_PASSWORD_HASH;
+
+// Function to verify super admin credentials
+const verifySuperAdminCredentials = (username: string, password: string): boolean => {
+  // Check if LDAP is disabled and super admin fallback is enabled
+  if (!process.env.LDAP_URL && SUPER_ADMIN_PASSWORD_HASH) {
+    if (username === SUPER_ADMIN_USERNAME) {
+      return bcrypt.compareSync(password, SUPER_ADMIN_PASSWORD_HASH);
+    }
+  }
+  return false;
+};
 
 // Login with LDAP
 router.post('/login', [
@@ -25,6 +41,65 @@ router.post('/login', [
   }
 
   console.log('Login attempt for username:', req.body.username);
+  
+  // Check Super Admin credentials first
+  const isSuperAdmin = verifySuperAdminCredentials(req.body.username, req.body.password);
+  if (isSuperAdmin) {
+    console.log('Super Admin login attempt');
+    const superAdminUser = {
+      uid: SUPER_ADMIN_USERNAME,
+      cn: 'Super Administrator',
+      mail: 'admin@localhost',
+      givenName: 'Super',
+      sn: 'Administrator',
+    };
+
+    req.login(superAdminUser, { session: true }, (loginErr): void => {
+      if (loginErr) {
+        logger.error('Session creation error (Super Admin):', loginErr);
+        res.status(500).json({
+          success: false,
+          message: 'Session creation failed',
+        });
+        return;
+      }
+
+      ActivityLogService.log({
+        username: SUPER_ADMIN_USERNAME,
+        action: LogActions.LOGIN_SUCCESS,
+        resourceType: ResourceTypes.SESSION,
+        details: {
+          method: 'SuperAdmin',
+          isAdmin: true
+        },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        status: 'success'
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        user: {
+          username: SUPER_ADMIN_USERNAME,
+          isAdmin: true,
+          isSuperAdmin: true,
+        },
+      });
+    });
+    return;
+  }
+
+  // If LDAP is not configured, reject login
+  if (!process.env.LDAP_URL) {
+    logger.warn('LDAP not configured and super admin credentials invalid');
+    res.status(401).json({
+      success: false,
+      message: 'Authentication not configured. Please set LDAP_URL or SUPER_ADMIN credentials.',
+    });
+    return;
+  }
+
   console.log('LDAP Config:', {
     url: process.env.LDAP_URL,
     bindDN: process.env.LDAP_BIND_DN,
