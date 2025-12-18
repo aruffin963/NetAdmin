@@ -219,6 +219,74 @@ router.post('/:id/regenerate',
 );
 
 /**
+ * POST /api/passwords/:id/reveal
+ * Déverrouiller un mot de passe avec la clé secrète
+ */
+router.post('/:id/reveal',
+  [
+    param('id').isInt({ min: 1 }).toInt(),
+    body('secretKey').notEmpty().withMessage('La clé secrète est requise'),
+    handleValidationErrors
+  ],
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const passwordId = parseInt(req.params.id);
+      const { secretKey } = req.body;
+
+      const password = await PasswordGeneratorService.getById(passwordId);
+
+      if (!password) {
+        res.status(404).json({
+          success: false,
+          message: 'Mot de passe non trouvé'
+        });
+        return;
+      }
+
+      // Vérifier que la clé secrète correspond
+      if (password.secret_key !== secretKey) {
+        res.status(401).json({
+          success: false,
+          message: 'Clé secrète incorrecte'
+        });
+        return;
+      }
+
+      // Régénérer le mot de passe à partir de la clé secrète
+      const plainPassword = PasswordGeneratorService.generateSecurePassword(password.length, secretKey);
+
+      // Log l'action
+      const created_by = (req as any).user?.username || 'system';
+      await ActivityLogService.log({
+        username: created_by,
+        action: LogActions.REVEAL,
+        resourceType: ResourceTypes.PASSWORD,
+        resourceId: passwordId.toString(),
+        resourceName: password.application,
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        status: 'success'
+      });
+
+      res.json({
+        success: true,
+        data: {
+          plainPassword: plainPassword
+        },
+        message: 'Mot de passe déverrouillé'
+      });
+    } catch (error) {
+      logger.error('Erreur lors du déverrouillage du mot de passe:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors du déverrouillage du mot de passe',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+      });
+    }
+  }
+);
+
+/**
  * DELETE /api/passwords/:id
  * Supprimer un mot de passe
  */

@@ -23,5 +23,6 @@
     /* Path mapping */
   },
   "include": ["src"],
+  "exclude": ["../backend", "node_modules/@types/net-snmp", "node_modules/@types/ssh2"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -126,7 +126,7 @@ const Monitoring: React.FC = () => {
       <ContentWrapper>
         <Header>
           <Title>
-            📊 Monitoring Réseau
+             Monitoring Réseau
           </Title>
         </Header>
 
@@ -290,13 +290,13 @@ const Monitoring: React.FC = () => {
 
 // Styled Components
 const Container = styled.div`
-  padding: 0;
-  background: #ffffff;
   min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8f0ff 100%);
+  padding: 0;
 `;
 
 const ContentWrapper = styled.div`
-  padding: 32px 24px;
+  padding: 40px 24px;
   max-width: 1400px;
   margin: 0 auto;
 `;
@@ -305,24 +305,27 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  background: white;
-  padding: 24px 32px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 48px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  padding: 32px 40px;
+  border-radius: 24px;
+  border: 1.5px solid #e0e8ff;
+  box-shadow: 0 10px 30px rgba(0, 102, 255, 0.1);
+  backdrop-filter: blur(10px);
 `;
 
 const Title = styled.h1`
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 32px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+  font-size: 36px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #0066ff 0%, #00d4ff 50%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin: 0;
+  letter-spacing: -0.5px;
 `;
 
 const LoadingContainer = styled.div`
@@ -330,20 +333,20 @@ const LoadingContainer = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  min-height: 500px;
   gap: 20px;
-  background: white;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 24px;
+  border: 1.5px solid #e0e8ff;
+  box-shadow: 0 10px 30px rgba(0, 102, 255, 0.1);
   margin: 32px;
 `;
 
 const LoadingSpinner = styled.div`
-  width: 56px;
-  height: 56px;
-  border: 5px solid rgba(96, 165, 250, 0.2);
-  border-top: 5px solid #60a5fa;
+  width: 64px;
+  height: 64px;
+  border: 4px solid rgba(0, 102, 255, 0.15);
+  border-top: 4px solid #0066ff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 
@@ -355,36 +358,39 @@ const LoadingSpinner = styled.div`
 
 const LoadingText = styled.p`
   font-size: 18px;
-  color: #60a5fa;
+  color: #0066ff;
   margin: 0;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 `;
 
 const DashboardSection = styled.section`
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: #1f2937;
-  margin: 0 0 24px 0;
+  margin: 0 0 28px 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  letter-spacing: -0.3px;
 
   &::before {
     content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-    border-radius: 2px;
+    width: 5px;
+    height: 28px;
+    background: linear-gradient(180deg, #0066ff 0%, #10b981 100%);
+    border-radius: 3px;
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
   }
 `;
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
 
   @media (max-width: 1024px) {
@@ -399,14 +405,14 @@ const StatsGrid = styled.div`
 const StatCard = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.95);
+  gap: 18px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
   backdrop-filter: blur(20px);
-  padding: 28px;
+  padding: 32px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  border: 1.5px solid #e0e8ff;
+  box-shadow: 0 8px 32px rgba(0, 102, 255, 0.08);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 
@@ -416,197 +422,221 @@ const StatCard = styled.div`
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #60a5fa 0%, #34d399 100%);
+    height: 4px;
+    background: linear-gradient(90deg, #0066ff 0%, #10b981 100%);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(0, 102, 255, 0.1) 0%, transparent 70%);
+    pointer-events: none;
   }
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(0, 102, 255, 0.15);
+    border-color: #0066ff;
   }
 `;
 
 const StatIcon = styled.div`
-  font-size: 28px;
-  width: 56px;
-  height: 56px;
+  font-size: 32px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  border-radius: 16px;
+  background: linear-gradient(135deg, #0066ff 0%, #00d4ff 100%);
+  border-radius: 18px;
   color: white;
-  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 102, 255, 0.35);
+  flex-shrink: 0;
 `;
 
 const StatInfo = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
+  gap: 4px;
 `;
 
 const StatValue = styled.span`
-  font-size: 28px;
-  font-weight: 800;
-  color: #1f2937;
-  line-height: 1;
-  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 32px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
 `;
 
 const StatLabel = styled.span`
-  font-size: 14px;
-  color: #6b7280;
-  font-weight: 600;
-  margin-top: 4px;
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 `;
 
 const MainContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 48px;
 `;
 
 const DevicesSection = styled.section`
-  background: white;
-  padding: 32px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  padding: 40px;
+  border-radius: 24px;
+  border: 1.5px solid #e0e8ff;
+  box-shadow: 0 10px 30px rgba(0, 102, 255, 0.08);
+  backdrop-filter: blur(10px);
 `;
 
 const SectionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(96, 165, 250, 0.1);
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(0, 102, 255, 0.1);
+  flex-wrap: wrap;
+  gap: 16px;
 `;
 
 const DeviceActions = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 `;
 
 const DeviceCount = styled.span`
-  font-size: 16px;
-  color: #60a5fa;
-  font-weight: 600;
-  background: rgba(96, 165, 250, 0.1);
-  padding: 8px 16px;
-  border-radius: 12px;
+  font-size: 15px;
+  color: #0066ff;
+  font-weight: 700;
+  background: rgba(0, 102, 255, 0.12);
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 102, 255, 0.25);
+  letter-spacing: 0.2px;
 `;
 
 const AddDeviceButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 14px 24px;
   background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+  letter-spacing: 0.2px;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(16, 185, 129, 0.4);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: translateY(-1px);
   }
 `;
 
 const DevicesGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 28px;
 `;
 
 const ChartsSection = styled.section`
-  margin-top: 40px;
-  background: white;
-  padding: 32px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-top: 48px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  padding: 40px;
+  border-radius: 24px;
+  border: 1.5px solid #e0e8ff;
+  box-shadow: 0 10px 30px rgba(0, 102, 255, 0.08);
+  backdrop-filter: blur(10px);
 `;
 
 const TimeRangeSelector = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(96, 165, 250, 0.05);
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(96, 165, 250, 0.2);
+  gap: 14px;
+  background: rgba(0, 102, 255, 0.08);
+  padding: 14px 24px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(0, 102, 255, 0.2);
+  flex-wrap: wrap;
 `;
 
 const TimeRangeLabel = styled.span`
   font-size: 16px;
-  color: #374151;
-  font-weight: 600;
+  color: #1f2937;
+  font-weight: 700;
+  letter-spacing: 0.2px;
 `;
 
 const TimeRangeSelect = styled.select`
-  padding: 10px 16px;
-  border: 2px solid rgba(96, 165, 250, 0.2);
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 12px 18px;
+  border: 2px solid rgba(0, 102, 255, 0.2);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
   background: white;
-  color: #374151;
+  color: #1f2937;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.1);
 
   &:focus {
     outline: none;
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    border-color: #0066ff;
+    box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
   }
 
   &:hover {
-    border-color: #60a5fa;
+    border-color: #0066ff;
   }
 `;
 
 const ChartsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: 24px;
-  margin-top: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 28px;
+  margin-top: 32px;
 `;
 
 const CloseChartsButton = styled.button`
-  margin-top: 24px;
-  padding: 16px 24px;
+  margin-top: 32px;
+  padding: 14px 28px;
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border: 2px solid rgba(96, 165, 250, 0.2);
-  border-radius: 12px;
+  border: 2px solid rgba(0, 102, 255, 0.2);
+  border-radius: 14px;
   color: #374151;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   gap: 8px;
+  letter-spacing: 0.2px;
 
   &:hover {
-    background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+    background: linear-gradient(135deg, #0066ff 0%, #10b981 100%);
     color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(96, 165, 250, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0, 102, 255, 0.3);
+    border-color: transparent;
   }
 `;
 

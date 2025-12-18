@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body, query, param, validationResult } from 'express-validator';
 import { DatabaseService } from '../config/database';
 import { logger } from '../utils/logger';
+import { ActivityLogService, LogActions, ResourceTypes } from '../services/activityLogService';
 
 const router = Router();
 
@@ -128,6 +129,25 @@ router.post('/', [
 
     logger.info(`Alerte créée: ${title} (niveau: ${level})`);
 
+    // Log l'action
+    await ActivityLogService.log({
+      username: 'anonymous',
+      action: LogActions.CREATE,
+      resourceType: 'ALERT',
+      resourceId: String(result.rows[0].id),
+      resourceName: title,
+      details: {
+        level,
+        message,
+        source,
+        device_id,
+        device_name
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'success'
+    });
+
     res.status(201).json({
       success: true,
       message: 'Alerte créée avec succès',
@@ -141,6 +161,20 @@ router.post('/', [
 
   } catch (error: any) {
     logger.error('Erreur lors de la création de l\'alerte:', error);
+
+    // Log l'erreur
+    await ActivityLogService.log({
+      username: 'anonymous',
+      action: LogActions.CREATE,
+      resourceType: 'ALERT',
+      resourceName: req.body.title || 'Unknown',
+      details: { level: req.body.level, message: req.body.message, source: req.body.source, device_id: req.body.device_id, device_name: req.body.device_name },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'error',
+      errorMessage: error.message
+    });
+
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la création de l\'alerte',
@@ -179,6 +213,18 @@ router.post('/:id/acknowledge', [
 
     logger.info(`Alerte acquittée: ID ${id} par ${acknowledged_by}`);
 
+    // Log l'action
+    await ActivityLogService.log({
+      username: acknowledged_by,
+      action: 'ACKNOWLEDGE',
+      resourceType: 'ALERT',
+      resourceId: id,
+      resourceName: `Alert #${id}`,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'success'
+    });
+
     res.json({
       success: true,
       message: 'Alerte acquittée avec succès',
@@ -190,6 +236,20 @@ router.post('/:id/acknowledge', [
 
   } catch (error: any) {
     logger.error('Erreur lors de l\'acquittement de l\'alerte:', error);
+
+    // Log l'erreur
+    await ActivityLogService.log({
+      username: 'anonymous',
+      action: 'ACKNOWLEDGE',
+      resourceType: 'ALERT',
+      resourceId: req.params.id,
+      resourceName: `Alert #${req.params.id}`,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'error',
+      errorMessage: error.message
+    });
+
     res.status(500).json({
       success: false,
       message: 'Erreur lors de l\'acquittement de l\'alerte',
@@ -219,6 +279,18 @@ router.delete('/:id', [
 
     logger.info(`Alerte supprimée: ID ${id}`);
 
+    // Log l'action
+    await ActivityLogService.log({
+      username: 'anonymous',
+      action: LogActions.DELETE,
+      resourceType: 'ALERT',
+      resourceId: String(id),
+      resourceName: `Alert #${id}`,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'success'
+    });
+
     res.json({
       success: true,
       message: 'Alerte supprimée avec succès'
@@ -226,6 +298,20 @@ router.delete('/:id', [
 
   } catch (error: any) {
     logger.error('Erreur lors de la suppression de l\'alerte:', error);
+
+    // Log l'erreur
+    await ActivityLogService.log({
+      username: 'anonymous',
+      action: LogActions.DELETE,
+      resourceType: 'ALERT',
+      resourceId: String(req.params.id),
+      resourceName: `Alert #${req.params.id}`,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'error',
+      errorMessage: error.message
+    });
+
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la suppression de l\'alerte',

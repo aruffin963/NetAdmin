@@ -71,6 +71,17 @@ export class PasswordGeneratorService {
    */
   static async generateAndSave(data: GeneratePasswordDto): Promise<{ password: Password; plainPassword: string }> {
     try {
+      // Vérifier si un mot de passe actif existe déjà pour cette application et username
+      const existingResult = await DatabaseService.query(`
+        SELECT id, application, username FROM passwords 
+        WHERE application = $1 AND username = $2 AND is_active = TRUE
+        LIMIT 1
+      `, [data.application, data.username]);
+
+      if (existingResult.rows.length > 0) {
+        throw new Error(`Un mot de passe actif existe déjà pour ${data.application}/${data.username}. Veuillez régénérer l'existant ou le supprimer avant d'en créer un nouveau.`);
+      }
+
       // Générer le mot de passe
       const plainPassword = this.generateSecurePassword(data.length, data.secret_key);
       

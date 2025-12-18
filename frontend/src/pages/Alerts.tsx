@@ -1,371 +1,824 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
-import AlertPanel from '../components/Monitoring/AlertPanel';
-import {
-  useAlerts,
-  useAcknowledgeAlert
-} from '../hooks/useMonitoringApi';
-import { AlertLevel } from '../types/monitoring';
+import { FaBell, FaCheck, FaTrash, FaClock, FaFilter, FaDownload } from 'react-icons/fa';
+
+interface Alert {
+  id: number;
+  level: 'info' | 'warning' | 'critical' | 'emergency';
+  title: string;
+  message: string;
+  source?: string;
+  device_id?: string;
+  device_name?: string;
+  status: 'active' | 'acknowledged' | 'resolved';
+  created_at: string;
+  acknowledged_at?: string;
+  acknowledged_by?: string;
+}
+
+type AlertLevel = 'all' | 'info' | 'warning' | 'critical' | 'emergency';
+type AlertStatus = 'all' | 'active' | 'acknowledged' | 'resolved';
 
 const Alerts: React.FC = () => {
-  const [selectedLevel, setSelectedLevel] = useState<AlertLevel | 'all'>('all');
-  const { data: alerts = [], isLoading } = useAlerts();
-  const acknowledgeAlert = useAcknowledgeAlert();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState<AlertLevel>('all');
+  const [selectedStatus, setSelectedStatus] = useState<AlertStatus>('active');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filtrer les alertes selon le niveau sélectionné
-  const filteredAlerts = selectedLevel === 'all' 
-    ? alerts 
-    : alerts.filter(alert => alert.level === selectedLevel);
-
-  // Compter les alertes par niveau
-  const alertCounts = {
-    total: alerts.length,
-    emergency: alerts.filter(a => a.level === AlertLevel.EMERGENCY).length,
-    critical: alerts.filter(a => a.level === AlertLevel.CRITICAL).length,
-    warning: alerts.filter(a => a.level === AlertLevel.WARNING).length,
-    info: alerts.filter(a => a.level === AlertLevel.INFO).length,
-  };
-
-  // Gestionnaire pour acquitter une alerte
-  const handleAcknowledgeAlert = async (alertId: string) => {
-    try {
-      await acknowledgeAlert.mutateAsync(alertId);
-    } catch (error) {
-      console.error('Erreur lors de l\'acquittement de l\'alerte:', error);
+  // Helper function to get icon based on alert level
+  const getLevelIcon = (level: string) => {
+    switch (level) {
+      case 'emergency': return '🚨';
+      case 'critical': return '❌';
+      case 'warning': return '⚠️';
+      case 'info': return 'ℹ️';
+      default: return '📌';
     }
   };
 
-  if (isLoading) {
+  // Charger les alertes depuis les logs et métriques
+  const loadAlerts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const alertsList: Alert[] = [];
+      let alertId = 1;
+
+      // Récupérer les logs d'activité
+      try {
+        const logsResponse = await fetch('http://localhost:5000/api/activity-logs');
+        if (logsResponse.ok) {
+          const logsData = await logsResponse.json();
+          const logs = logsData.data || [];
+
+          // Transformer les logs en alertes
+          logs.forEach((log: any) => {
+            // Créer une alerte si le statut est "error"
+            if (log.status === 'error') {
+              alertsList.push({
+                id: alertId++,
+                level: 'critical',
+                title: `Erreur: ${log.action}`,
+                message: log.details || `Erreur lors de ${log.action} sur ${log.resourceType}`,
+                source: 'Activity Logs',
+                device_id: log.resourceId,
+                device_name: log.resourceName,
+                status: 'active',
+                created_at: log.timestamp || new Date().toISOString(),
+              });
+            }
+            // Créer une alerte pour les actions DELETE
+            if (log.action === 'DELETE') {
+              alertsList.push({
+                id: alertId++,
+                level: 'warning',
+                title: `Suppression: ${log.resourceType}`,
+                message: `${log.resourceName} a été supprimé par ${log.username}`,
+                source: 'Activity Logs',
+                device_id: log.resourceId,
+                device_name: log.resourceName,
+                status: 'active',
+                created_at: log.timestamp || new Date().toISOString(),
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Erreur chargement logs:', err);
+      }
+
+      // Récupérer les métriques et créer des alertes basées sur les seuils
+      try {
+        const metricsResponse = await fetch('http://localhost:5000/api/agentless/devices');
+        if (metricsResponse.ok) {
+          const devicesData = await metricsResponse.json();
+          const devices = devicesData.data || [];
+
+          // Pour chaque device, récupérer les dernières métriques
+          for (const device of devices) {
+            try {
+              const deviceMetricsResponse = await fetch(`http://localhost:5000/api/agentless/metrics/${device.id}?limit=1`);
+              if (deviceMetricsResponse.ok) {
+                const metricsData = await deviceMetricsResponse.json();
+                const metrics = metricsData.data?.[0];
+
+                if (metrics) {
+                  // Alerte CPU élevé (> 80%)
+                  if (metrics.cpu_percent && metrics.cpu_percent > 80) {
+                    alertsList.push({
+                      id: alertId++,
+                      level: metrics.cpu_percent > 95 ? 'critical' : 'warning',
+                      title: `CPU élevé: ${device.name}`,
+                      message: `Utilisation CPU à ${metrics.cpu_percent}% sur ${device.name}`,
+                      source: 'System Metrics',
+                      device_id: device.id,
+                      device_name: device.name,
+                      status: 'active',
+                      created_at: metrics.timestamp || new Date().toISOString(),
+                    });
+                  }
+
+                  // Alerte Mémoire élevée (> 85%)
+                  if (metrics.memory_percent && metrics.memory_percent > 85) {
+                    alertsList.push({
+                      id: alertId++,
+                      level: metrics.memory_percent > 95 ? 'critical' : 'warning',
+                      title: `Mémoire élevée: ${device.name}`,
+                      message: `Utilisation mémoire à ${metrics.memory_percent}% sur ${device.name}`,
+                      source: 'System Metrics',
+                      device_id: device.id,
+                      device_name: device.name,
+                      status: 'active',
+                      created_at: metrics.timestamp || new Date().toISOString(),
+                    });
+                  }
+
+                  // Alerte Disque élevé (> 90%)
+                  if (metrics.disk_percent && metrics.disk_percent > 90) {
+                    alertsList.push({
+                      id: alertId++,
+                      level: 'critical',
+                      title: `Disque plein: ${device.name}`,
+                      message: `Utilisation disque à ${metrics.disk_percent}% sur ${device.name}`,
+                      source: 'System Metrics',
+                      device_id: device.id,
+                      device_name: device.name,
+                      status: 'active',
+                      created_at: metrics.timestamp || new Date().toISOString(),
+                    });
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(`Erreur chargement métriques device ${device.id}:`, err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Erreur chargement devices:', err);
+      }
+
+      // Appliquer les filtres
+      let filtered = alertsList;
+
+      if (selectedLevel !== 'all') {
+        filtered = filtered.filter(a => a.level === selectedLevel);
+      }
+
+      if (selectedStatus !== 'all') {
+        filtered = filtered.filter(a => a.status === selectedStatus);
+      }
+
+      // Trier par date (plus récents en premier)
+      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setAlerts(filtered);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Erreur chargement alertes:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedLevel, selectedStatus]);
+
+  // Charger les alertes au montage et quand les filtres changent
+  React.useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
+
+  // Filtrer les alertes par recherche
+  const filteredAlerts = alerts.filter(alert => {
+    const query = searchQuery.toLowerCase();
     return (
-      <Container>
-        <ContentWrapper>
-          <LoadingContainer>
-            <LoadingSpinner />
-            <LoadingText>Chargement des alertes...</LoadingText>
-          </LoadingContainer>
-        </ContentWrapper>
-      </Container>
+      alert.title.toLowerCase().includes(query) ||
+      alert.message.toLowerCase().includes(query) ||
+      alert.device_name?.toLowerCase().includes(query)
     );
-  }
+  });
+
+  // Compter les alertes par niveau
+  const stats = {
+    total: alerts.length,
+    emergency: alerts.filter(a => a.level === 'emergency').length,
+    critical: alerts.filter(a => a.level === 'critical').length,
+    warning: alerts.filter(a => a.level === 'warning').length,
+    info: alerts.filter(a => a.level === 'info').length,
+    active: alerts.filter(a => a.status === 'active').length,
+    acknowledged: alerts.filter(a => a.status === 'acknowledged').length,
+  };
+
+  const handleAcknowledge = async (alertId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/alerts/${alertId}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acknowledged_by: 'User' })
+      });
+
+      if (response.ok) {
+        await loadAlerts();
+      }
+    } catch (err) {
+      console.error('Erreur acknowledge:', err);
+    }
+  };
+
+  const handleDelete = async (alertId: number) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette alerte?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/alerts/${alertId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await loadAlerts();
+      }
+    } catch (err) {
+      console.error('Erreur suppression:', err);
+    }
+  };
+
+  const handleExportCSV = () => {
+    const csv = [
+      ['Titre', 'Niveau', 'Statut', 'Équipement', 'Source', 'Date', 'Message'].join(';'),
+      ...filteredAlerts.map(a => [
+        a.title,
+        a.level,
+        a.status,
+        a.device_name || '-',
+        a.source || '-',
+        new Date(a.created_at).toLocaleString('fr-FR'),
+        `"${a.message}"`
+      ].join(';'))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `alertes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
 
   return (
     <Container>
-      <ContentWrapper>
-        <Header>
-          <Title>
-            🔔 Gestion des Alertes
-          </Title>
-          <AlertCount>
-            {alertCounts.total} {alertCounts.total > 1 ? 'alertes' : 'alerte'} actives
-          </AlertCount>
-        </Header>
+      {/* Header */}
+      <TopBar>
+        <TopBarLeft>
+          <PageTitle><FaBell /> Alertes</PageTitle>
+          <CountBadge>{stats.total}</CountBadge>
+        </TopBarLeft>
+        <TopBarRight>
+          <ExportButton onClick={handleExportCSV}>
+            <FaDownload /> CSV
+          </ExportButton>
+        </TopBarRight>
+      </TopBar>
 
-        {/* Statistiques des alertes */}
-        <StatsSection>
-          <SectionTitle>Vue d'ensemble</SectionTitle>
-          <StatsGrid>
-            <StatCard 
-              $isActive={false}
-              onClick={() => setSelectedLevel('all')}
-            >
-              <StatIcon>📊</StatIcon>
-              <StatInfo>
-                <StatValue $isActive={false}>{alertCounts.total}</StatValue>
-                <StatLabel $isActive={false}>Total</StatLabel>
-              </StatInfo>
-            </StatCard>
-            
-            <StatCard 
-              $isActive={selectedLevel === AlertLevel.EMERGENCY}
-              onClick={() => setSelectedLevel(AlertLevel.EMERGENCY)}
-            >
-              <StatIcon>🚨</StatIcon>
-              <StatInfo>
-                <StatValue $isActive={selectedLevel === AlertLevel.EMERGENCY}>{alertCounts.emergency}</StatValue>
-                <StatLabel $isActive={selectedLevel === AlertLevel.EMERGENCY}>Urgences</StatLabel>
-              </StatInfo>
-            </StatCard>
-            
-            <StatCard 
-              $isActive={selectedLevel === AlertLevel.CRITICAL}
-              onClick={() => setSelectedLevel(AlertLevel.CRITICAL)}
-            >
-              <StatIcon>❌</StatIcon>
-              <StatInfo>
-                <StatValue $isActive={selectedLevel === AlertLevel.CRITICAL}>{alertCounts.critical}</StatValue>
-                <StatLabel $isActive={selectedLevel === AlertLevel.CRITICAL}>Critiques</StatLabel>
-              </StatInfo>
-            </StatCard>
-            
-            <StatCard 
-              $isActive={selectedLevel === AlertLevel.WARNING}
-              onClick={() => setSelectedLevel(AlertLevel.WARNING)}
-            >
-              <StatIcon>⚠️</StatIcon>
-              <StatInfo>
-                <StatValue $isActive={selectedLevel === AlertLevel.WARNING}>{alertCounts.warning}</StatValue>
-                <StatLabel $isActive={selectedLevel === AlertLevel.WARNING}>Avertissements</StatLabel>
-              </StatInfo>
-            </StatCard>
-            
-            <StatCard 
-              $isActive={selectedLevel === AlertLevel.INFO}
-              onClick={() => setSelectedLevel(AlertLevel.INFO)}
-            >
-              <StatIcon>ℹ️</StatIcon>
-              <StatInfo>
-                <StatValue $isActive={selectedLevel === AlertLevel.INFO}>{alertCounts.info}</StatValue>
-                <StatLabel $isActive={selectedLevel === AlertLevel.INFO}>Informations</StatLabel>
-              </StatInfo>
-            </StatCard>
-          </StatsGrid>
-        </StatsSection>
+      {/* Main Content */}
+      <MainContent>
+        {/* Sidebar Filters */}
+        <Sidebar>
+          <FilterCard>
+            <FilterTitle>Par Sévérité</FilterTitle>
+            <FilterList>
+              <FilterItem onClick={() => { setSelectedLevel('all'); }} isActive={selectedLevel === 'all'}>
+                <FilterLabel>Tous</FilterLabel>
+                <FilterCount>{stats.total}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedLevel('emergency')} isActive={selectedLevel === 'emergency'}>
+                <FilterBullet color="#ef4444">🚨</FilterBullet>
+                <FilterLabel>Urgence</FilterLabel>
+                <FilterCount>{stats.emergency}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedLevel('critical')} isActive={selectedLevel === 'critical'}>
+                <FilterBullet color="#dc2626">❌</FilterBullet>
+                <FilterLabel>Critique</FilterLabel>
+                <FilterCount>{stats.critical}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedLevel('warning')} isActive={selectedLevel === 'warning'}>
+                <FilterBullet color="#f59e0b">⚠️</FilterBullet>
+                <FilterLabel>Avertissements</FilterLabel>
+                <FilterCount>{stats.warning}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedLevel('info')} isActive={selectedLevel === 'info'}>
+                <FilterBullet color="#3b82f6">ℹ️</FilterBullet>
+                <FilterLabel>Info</FilterLabel>
+                <FilterCount>{stats.info}</FilterCount>
+              </FilterItem>
+            </FilterList>
+          </FilterCard>
 
-        {/* Section principale des alertes */}
-        <MainSection>
-          <SectionHeader>
-            <SectionTitle>
-              {selectedLevel === 'all' 
-                ? 'Toutes les alertes' 
-                : `Alertes ${
-                    selectedLevel === AlertLevel.EMERGENCY ? 'urgentes' :
-                    selectedLevel === AlertLevel.CRITICAL ? 'critiques' :
-                    selectedLevel === AlertLevel.WARNING ? 'd\'avertissement' :
-                    'd\'information'
-                  }`
-              }
-            </SectionTitle>
-            <FilterInfo>
-              {filteredAlerts.length} {filteredAlerts.length > 1 ? 'résultats' : 'résultat'}
-            </FilterInfo>
-          </SectionHeader>
-          
-          <AlertContainer>
-            <AlertPanel
-              alerts={filteredAlerts}
-              onAcknowledge={handleAcknowledgeAlert}
-              maxItems={50}
+          <FilterCard>
+            <FilterTitle>Par Statut</FilterTitle>
+            <FilterList>
+              <FilterItem onClick={() => setSelectedStatus('all')} isActive={selectedStatus === 'all'}>
+                <FilterLabel>Tous</FilterLabel>
+                <FilterCount>{stats.total}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedStatus('active')} isActive={selectedStatus === 'active'}>
+                <FilterBullet color="#ef4444">●</FilterBullet>
+                <FilterLabel>Actives</FilterLabel>
+                <FilterCount>{stats.active}</FilterCount>
+              </FilterItem>
+              <FilterItem onClick={() => setSelectedStatus('acknowledged')} isActive={selectedStatus === 'acknowledged'}>
+                <FilterBullet color="#10b981">●</FilterBullet>
+                <FilterLabel>Acquittées</FilterLabel>
+                <FilterCount>{stats.acknowledged}</FilterCount>
+              </FilterItem>
+            </FilterList>
+          </FilterCard>
+        </Sidebar>
+
+        {/* Content Area */}
+        <ContentArea>
+          {/* Search Bar */}
+          <SearchBar>
+            <SearchInput
+              type="text"
+              placeholder="Rechercher une alerte..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </AlertContainer>
-        </MainSection>
-      </ContentWrapper>
+          </SearchBar>
+
+          {/* Alerts List */}
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+
+          {loading ? (
+            <EmptyState>
+              <EmptyIcon>⏳</EmptyIcon>
+              <EmptyText>Chargement des alertes...</EmptyText>
+            </EmptyState>
+          ) : filteredAlerts.length === 0 ? (
+            <EmptyState>
+              <EmptyIcon>📭</EmptyIcon>
+              <EmptyText>
+                {searchQuery 
+                  ? 'Aucune alerte ne correspond à votre recherche'
+                  : 'Aucune alerte pour ce filtre'
+                }
+              </EmptyText>
+            </EmptyState>
+          ) : (
+            <AlertsTable>
+              <TableHeader>
+                <TableHeaderCell width="10%">Niveau</TableHeaderCell>
+                <TableHeaderCell width="30%">Titre</TableHeaderCell>
+                <TableHeaderCell width="20%">Équipement</TableHeaderCell>
+                <TableHeaderCell width="15%">Statut</TableHeaderCell>
+                <TableHeaderCell width="20%">Date</TableHeaderCell>
+                <TableHeaderCell width="5%">Actions</TableHeaderCell>
+              </TableHeader>
+              <TableBody>
+                {filteredAlerts.map((alert) => (
+                  <TableRow key={alert.id} level={alert.level}>
+                    <TableCell>
+                      <LevelBadge level={alert.level}>
+                        {getLevelIcon(alert.level)}
+                      </LevelBadge>
+                    </TableCell>
+                    <TableCell>
+                      <AlertTitle>{alert.title}</AlertTitle>
+                      <AlertDesc>{alert.message}</AlertDesc>
+                    </TableCell>
+                    <TableCell>{alert.device_name || '—'}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={alert.status}>
+                        {alert.status === 'active' ? 'Actif' : alert.status === 'acknowledged' ? 'Acquitté' : 'Résolu'}
+                      </StatusBadge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(alert.created_at).toLocaleString('fr-FR')}
+                    </TableCell>
+                    <TableCell>
+                      <ActionGroup>
+                        {alert.status === 'active' && (
+                          <ActionIconButton onClick={() => handleAcknowledge(alert.id)} title="Acquitter">
+                            <FaCheck />
+                          </ActionIconButton>
+                        )}
+                        <ActionIconButton onClick={() => handleDelete(alert.id)} title="Supprimer" danger>
+                          <FaTrash />
+                        </ActionIconButton>
+                      </ActionGroup>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </AlertsTable>
+          )}
+        </ContentArea>
+      </MainContent>
     </Container>
   );
 };
 
-// Styled Components
+// ============= STYLES =============
+
 const Container = styled.div`
-  padding: 0;
-  background: #ffffff;
+  background: #f5f7fa;
   min-height: 100vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
-const ContentWrapper = styled.div`
-  padding: 32px 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-`;
-
-const Header = styled.div`
+const TopBar = styled.div`
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 32px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  background: white;
-  padding: 24px 32px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  gap: 20px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
-const Title = styled.h1`
+const TopBarLeft = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 32px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
 `;
 
-const AlertCount = styled.div`
+const TopBarRight = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 24px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
-  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
-const LoadingContainer = styled.div`
+const PageTitle = styled.h1`
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CountBadge = styled.span`
+  background: #eff6ff;
+  color: #0066ff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+`;
+
+const MainContent = styled.div`
+  display: flex;
+  flex: 1;
+  gap: 0;
+`;
+
+const Sidebar = styled.div`
+  width: 280px;
+  background: white;
+  border-right: 1px solid #e5e7eb;
+  padding: 24px 16px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  gap: 20px;
-  background: white;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  margin: 32px;
-`;
+  gap: 16px;
 
-const LoadingSpinner = styled.div`
-  width: 56px;
-  height: 56px;
-  border: 5px solid rgba(96, 165, 250, 0.2);
-  border-top: 5px solid #60a5fa;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  @media (max-width: 768px) {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 `;
 
-const LoadingText = styled.p`
-  font-size: 18px;
-  color: #60a5fa;
+const FilterCard = styled.div`
+  background: #fafbfc;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+
+  @media (max-width: 768px) {
+    flex: 0 0 auto;
+  }
+`;
+
+const FilterTitle = styled.h3`
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+`;
+
+const FilterList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const FilterItem = styled.button<{ isActive: boolean }>`
+  background: ${props => props.isActive ? '#eff6ff' : 'transparent'};
+  border: none;
+  color: ${props => props.isActive ? '#0066ff' : '#4b5563'};
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: ${props => props.isActive ? '600' : '500'};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #eff6ff;
+    color: #0066ff;
+  }
+`;
+
+const FilterBullet = styled.span<{ color: string }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${props => props.color};
+  display: inline-block;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const FilterLabel = styled.span`
+  flex: 1;
+  text-align: left;
+`;
+
+const FilterCount = styled.span`
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+`;
+
+const ContentArea = styled.div`
+  flex: 1;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+`;
+
+const SearchBar = styled.div`
+  display: flex;
+  gap: 12px;
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: #1f2937;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #0066ff;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const ExportButton = styled.button`
+  padding: 10px 16px;
+  background: #0066ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #0052cc;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid #991b1b;
+  font-size: 14px;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 80px 20px;
+  color: #9ca3af;
+  font-size: 14px;
+`;
+
+const EmptyIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 16px;
+`;
+
+const EmptyText = styled.p`
   margin: 0;
   font-weight: 500;
 `;
 
-const StatsSection = styled.section`
-  margin-bottom: 40px;
-`;
-
-const SectionTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 24px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  &::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-    border-radius: 2px;
-  }
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
-`;
-
-const StatCard = styled.div<{ $isActive?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: ${props => props.$isActive 
-    ? 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' 
-    : 'white'
-  };
-  padding: 28px;
-  border-radius: 20px;
+const AlertsTable = styled.div`
+  background: white;
   border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  position: relative;
+  border-radius: 12px;
   overflow: hidden;
-  cursor: pointer;
+`;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: ${props => props.$isActive 
-      ? 'rgba(255, 255, 255, 0.5)' 
-      : 'linear-gradient(90deg, #60a5fa 0%, #34d399 100%)'
-    };
+const TableHeader = styled.div`
+  background: #f9fafb;
+  display: grid;
+  grid-template-columns: 10% 30% 20% 15% 20% 5%;
+  gap: 0;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 15% 35% 15% 20% 10% 5%;
   }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+`;
+
+const TableHeaderCell = styled.div<{ width?: string }>`
+  padding: 14px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: 0.5px;
+  width: ${props => props.width};
+`;
+
+const TableBody = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const TableRow = styled.div<{ level: string }>`
+  display: grid;
+  grid-template-columns: 10% 30% 20% 15% 20% 5%;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid #f3f4f6;
+  align-items: center;
+  transition: background 0.2s ease;
+  border-left: 4px solid ${props => {
+    switch (props.level) {
+      case 'emergency': return '#ef4444';
+      case 'critical': return '#dc2626';
+      case 'warning': return '#f59e0b';
+      case 'info': return '#3b82f6';
+      default: return '#0066ff';
+    }
+  }};
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    background: #f9fafb;
+  }
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 15% 35% 15% 20% 10% 5%;
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid ${props => {
+      switch (props.level) {
+        case 'emergency': return '#ef4444';
+        case 'critical': return '#dc2626';
+        case 'warning': return '#f59e0b';
+        case 'info': return '#3b82f6';
+        default: return '#0066ff';
+      }
+    }};
+    border-radius: 8px;
+    background: white;
   }
 `;
 
-const StatIcon = styled.div<{ $isActive?: boolean }>`
-  font-size: 28px;
-  width: 56px;
-  height: 56px;
+const TableCell = styled.div`
+  padding: 16px;
+  font-size: 14px;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 768px) {
+    padding: 8px 0;
+    white-space: normal;
+  }
+`;
+
+const LevelBadge = styled.span<{ level: string }>`
+  font-size: 18px;
+  display: inline-block;
+`;
+
+const AlertTitle = styled.div`
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+  white-space: normal;
+`;
+
+const AlertDesc = styled.div`
+  font-size: 13px;
+  color: #9ca3af;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+`;
+
+const StatusBadge = styled.span<{ status: string }>`
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: ${props => {
+    switch (props.status) {
+      case 'active': return '#fee2e2';
+      case 'acknowledged': return '#dbeafe';
+      default: return '#e5e7eb';
+    }
+  }};
+  color: ${props => {
+    switch (props.status) {
+      case 'active': return '#991b1b';
+      case 'acknowledged': return '#1e40af';
+      default: return '#374151';
+    }
+  }};
+`;
+
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+`;
+
+const ActionIconButton = styled.button<{ danger?: boolean }>`
+  padding: 6px 8px;
+  background: ${props => props.danger ? '#fee2e2' : '#dbeafe'};
+  color: ${props => props.danger ? '#dc2626' : '#0066ff'};
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  border-radius: 16px;
-  color: white;
-  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
-`;
+  transition: all 0.2s ease;
 
-const StatInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-`;
-
-const StatValue = styled.span<{ $isActive?: boolean }>`
-  font-size: 28px;
-  font-weight: 800;
-  color: ${props => props.$isActive ? 'white' : '#1f2937'};
-  line-height: 1;
-`;
-
-const StatLabel = styled.span<{ $isActive?: boolean }>`
-  font-size: 14px;
-  color: ${props => props.$isActive ? 'rgba(255, 255, 255, 0.8)' : '#6b7280'};
-  font-weight: 600;
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const MainSection = styled.section`
-  background: white;
-  padding: 32px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(96, 165, 250, 0.1);
-`;
-
-const FilterInfo = styled.span`
-  font-size: 16px;
-  color: #60a5fa;
-  font-weight: 600;
-  background: rgba(96, 165, 250, 0.1);
-  padding: 8px 16px;
-  border-radius: 12px;
-`;
-
-const AlertContainer = styled.div`
-  /* Styles héritent du composant AlertPanel */
+  &:hover {
+    background: ${props => props.danger ? '#fecaca' : '#bfdbfe'};
+    transform: scale(1.05);
+  }
 `;
 
 export default Alerts;

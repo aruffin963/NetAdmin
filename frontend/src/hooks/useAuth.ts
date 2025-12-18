@@ -92,11 +92,11 @@ export const useAuth = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        console.log('Login successful, user:', result.data.user);
+        console.log('Login successful, user:', result.user);
         setAuthState({
           isAuthenticated: true,
           isLoading: false,
-          user: result.data.user,
+          user: result.user,
         });
         
         // Petit délai pour que React re-render, puis redirection

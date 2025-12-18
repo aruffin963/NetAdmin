@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuration de l'API client
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -9,15 +9,13 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for session cookies
 });
 
-// Intercepteur pour les requêtes (ajout du token d'authentification)
+// Intercepteur pour les requêtes
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Sessions gérées automatiquement avec withCredentials: true
     return config;
   },
   (error) => {
@@ -32,9 +30,8 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Session expirée ou invalide
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }

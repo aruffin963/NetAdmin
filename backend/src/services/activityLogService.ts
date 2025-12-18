@@ -79,8 +79,8 @@ export class ActivityLogService {
         status
       } = options;
 
-      const whereConditions: string[] = [];
-      const params: any[] = [];
+      let whereConditions: string[] = [];
+      let params: any[] = [];
       let paramCount = 1;
 
       if (username) {
@@ -252,6 +252,7 @@ export const LogActions = {
   // Opérations spécifiques
   SCAN: 'SCAN',
   GENERATE: 'GENERATE',
+  REVEAL: 'REVEAL',
   EXPORT: 'EXPORT',
   IMPORT: 'IMPORT',
   ASSIGN: 'ASSIGN',

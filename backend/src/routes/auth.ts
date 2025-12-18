@@ -1,34 +1,19 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
-import passport from '../config/passport';
 import { SessionService } from '../config/session';
 import { logger } from '../utils/logger';
 import { ActivityLogService, LogActions, ResourceTypes } from '../services/activityLogService';
+import { pool } from '../config/database';
 
 const router = Router();
 const sessionService = SessionService.getInstance();
 
-// Super Admin Credentials
-const SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || 'admin';
-const SUPER_ADMIN_PASSWORD_HASH = process.env.SUPER_ADMIN_PASSWORD_HASH;
-
-// Function to verify super admin credentials
-const verifySuperAdminCredentials = (username: string, password: string): boolean => {
-  // Check if LDAP is disabled and super admin fallback is enabled
-  if (!process.env.LDAP_URL && SUPER_ADMIN_PASSWORD_HASH) {
-    if (username === SUPER_ADMIN_USERNAME) {
-      return bcrypt.compareSync(password, SUPER_ADMIN_PASSWORD_HASH);
-    }
-  }
-  return false;
-};
-
-// Login with LDAP
+// Login with local database
 router.post('/login', [
   body('username').trim().notEmpty().withMessage('Username is required'),
   body('password').notEmpty().withMessage('Password is required'),
-], (req: Request, res: Response, next: NextFunction): void => {
+], async (req: Request, res: Response): Promise<void> => {
   // Check validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -40,23 +25,93 @@ router.post('/login', [
     return;
   }
 
-  console.log('Login attempt for username:', req.body.username);
-  
-  // Check Super Admin credentials first
-  const isSuperAdmin = verifySuperAdminCredentials(req.body.username, req.body.password);
-  if (isSuperAdmin) {
-    console.log('Super Admin login attempt');
-    const superAdminUser = {
-      uid: SUPER_ADMIN_USERNAME,
-      cn: 'Super Administrator',
-      mail: 'admin@localhost',
-      givenName: 'Super',
-      sn: 'Administrator',
+  const { username, password } = req.body;
+
+  try {
+    console.log('Login attempt for username:', username);
+
+    // Find user by email or name (treating as username)
+    const userResult = await pool.query(
+      'SELECT id, email, password, name, role, is_active FROM users WHERE email = $1 OR name = $1 LIMIT 1',
+      [username]
+    );
+
+    if (userResult.rows.length === 0) {
+      logger.warn(`Login failed - user not found: ${username}`);
+      
+      ActivityLogService.log({
+        username,
+        action: LogActions.LOGIN_FAILED,
+        resourceType: ResourceTypes.SESSION,
+        details: {
+          reason: 'User not found',
+          method: 'Local'
+        },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        status: 'error',
+        errorMessage: 'Invalid credentials'
+      }).catch((err) => logger.error('Failed to log login attempt:', err));
+
+      res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    if (!user.is_active) {
+      logger.warn(`Login failed - user inactive: ${username}`);
+      res.status(401).json({
+        success: false,
+        message: 'User account is inactive',
+      });
+      return;
+    }
+
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      logger.warn(`Login failed - invalid password: ${username}`);
+      
+      ActivityLogService.log({
+        username,
+        action: LogActions.LOGIN_FAILED,
+        resourceType: ResourceTypes.SESSION,
+        details: {
+          reason: 'Invalid password',
+          method: 'Local'
+        },
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        status: 'error',
+        errorMessage: 'Invalid credentials'
+      }).catch((err) => logger.error('Failed to log login attempt:', err));
+
+      res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+      return;
+    }
+
+    // Create user object for session
+    const sessionUser: Express.User = {
+      id: user.id,
+      username: user.name,
+      email: user.email,
+      full_name: user.name,
+      is_active: user.is_active,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
 
-    req.login(superAdminUser, { session: true }, (loginErr): void => {
+    // Create session
+    req.login(sessionUser, { session: true }, (loginErr): void => {
       if (loginErr) {
-        logger.error('Session creation error (Super Admin):', loginErr);
+        logger.error('Session creation error:', loginErr);
         res.status(500).json({
           success: false,
           message: 'Session creation failed',
@@ -64,138 +119,118 @@ router.post('/login', [
         return;
       }
 
+      // Update last login
+      pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id])
+        .catch((err) => logger.error('Failed to update last_login:', err));
+
+      // Log successful login
       ActivityLogService.log({
-        username: SUPER_ADMIN_USERNAME,
-        action: LogActions.LOGIN_SUCCESS,
-        resourceType: ResourceTypes.SESSION,
-        details: {
-          method: 'SuperAdmin',
-          isAdmin: true
-        },
-        ipAddress: req.ip || req.socket.remoteAddress,
-        userAgent: req.get('User-Agent'),
-        status: 'success'
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        user: {
-          username: SUPER_ADMIN_USERNAME,
-          isAdmin: true,
-          isSuperAdmin: true,
-        },
-      });
-    });
-    return;
-  }
-
-  // If LDAP is not configured, reject login
-  if (!process.env.LDAP_URL) {
-    logger.warn('LDAP not configured and super admin credentials invalid');
-    res.status(401).json({
-      success: false,
-      message: 'Authentication not configured. Please set LDAP_URL or SUPER_ADMIN credentials.',
-    });
-    return;
-  }
-
-  console.log('LDAP Config:', {
-    url: process.env.LDAP_URL,
-    bindDN: process.env.LDAP_BIND_DN,
-    searchBase: process.env.LDAP_SEARCH_BASE,
-    searchFilter: process.env.LDAP_SEARCH_FILTER
-  });
-
-  passport.authenticate('ldapauth', { session: false }, (err: any, user: any, info: any): void => {
-    console.log('Passport callback - err:', err);
-    console.log('Passport callback - user:', user);
-    console.log('Passport callback - info:', info);
-
-    if (res.headersSent) {
-      return;
-    }
-
-    if (err) {
-      logger.error('LDAP authentication error:', err);
-      res.status(500).json({
-        success: false,
-        message: 'Authentication server error',
-        details: err.message,
-      });
-      return;
-    }
-
-    if (!user) {
-      logger.warn('LDAP authentication failed:', info);
-      
-      // Log l'échec de connexion
-      ActivityLogService.log({
-        username: req.body.username || 'unknown',
-        action: LogActions.LOGIN_FAILED,
-        resourceType: ResourceTypes.SESSION,
-        details: {
-          reason: info?.message || 'Invalid credentials',
-          method: 'LDAP'
-        },
-        ipAddress: req.ip || req.socket.remoteAddress,
-        userAgent: req.get('User-Agent'),
-        status: 'error',
-        errorMessage: info?.message || 'Invalid credentials'
-      });
-      
-      res.status(401).json({
-        success: false,
-        message: info?.message || 'Invalid credentials',
-      });
-      return;
-    }
-
-    // Create session manually
-    req.login(user, { session: true }, (loginErr): void => {
-      if (loginErr) {
-        logger.error('Session creation error:', loginErr);
-        res.status(500).json({
-          success: false,
-          message: 'Failed to create session',
-        });
-        return;
-      }
-
-      logger.info(`User logged in via LDAP: ${user.username}`);
-
-      // Log l'action de connexion
-      ActivityLogService.log({
-        username: user.username,
+        username: user.name,
         action: LogActions.LOGIN,
         resourceType: ResourceTypes.SESSION,
         details: {
-          method: 'LDAP',
-          fullName: user.full_name
+          method: 'Local',
+          userId: user.id
         },
         ipAddress: req.ip || req.socket.remoteAddress,
         userAgent: req.get('User-Agent'),
         status: 'success'
-      });
+      }).catch((err) => logger.error('Failed to log login:', err));
 
-      res.json({
+      logger.info(`User logged in: ${user.name}`);
+
+      res.status(200).json({
         success: true,
         message: 'Login successful',
         data: {
           user: {
             id: user.id,
-            username: user.username,
+            username: user.name,
             email: user.email,
-            fullName: user.full_name,
-            lastLogin: user.last_login_at,
-          },
-          session: {
-            expiresIn: 900, // 15 minutes in seconds
+            fullName: user.name,
+            role: user.role,
           }
-        },
+        }
       });
     });
-  })(req, res, next);
+  } catch (error) {
+    logger.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Authentication error',
+    });
+  }
+});
+
+// Create a new user (development only)
+router.post('/register', [
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('name').notEmpty().withMessage('Name is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+], async (req: Request, res: Response): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors: errors.array(),
+    });
+    return;
+  }
+
+  const { email, name, password } = req.body;
+
+  try {
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const result = await pool.query(
+      'INSERT INTO users (email, password, name, role, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role',
+      [email, hashedPassword, name, 'user', true]
+    );
+
+    const newUser = result.rows[0];
+
+    logger.info(`New user created: ${name} (${email})`);
+
+    ActivityLogService.log({
+      username: name,
+      action: LogActions.CREATE,
+      resourceType: ResourceTypes.USER,
+      details: {
+        email,
+        method: 'Registration'
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      status: 'success'
+    }).catch((err) => logger.error('Failed to log registration:', err));
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === '23505') { // Unique violation
+      res.status(409).json({
+        success: false,
+        message: 'Email already exists',
+      });
+    } else {
+      logger.error('Registration error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Registration failed',
+      });
+    }
+  }
 });
 
 // Logout endpoint
@@ -204,7 +239,7 @@ router.post('/logout', (req: Request, res: Response): void => {
   const user = (req as any).user;
   const username = user?.username || 'unknown';
   
-  req.logout((err): void => {
+  req.logout((err: Error | null): void => {
     if (err) {
       logger.error('Logout error:', err);
       res.status(500).json({
@@ -214,13 +249,13 @@ router.post('/logout', (req: Request, res: Response): void => {
       return;
     }
 
-    req.session.destroy(async (destroyErr): Promise<void> => {
+    req.session.destroy((destroyErr): void => {
       if (destroyErr) {
         logger.error('Session destruction error:', destroyErr);
       }
 
-      // Log l'action de déconnexion
-      await ActivityLogService.log({
+      // Log l'action de déconnexion (fire and forget)
+      ActivityLogService.log({
         username,
         action: LogActions.LOGOUT,
         resourceType: ResourceTypes.SESSION,
@@ -230,11 +265,11 @@ router.post('/logout', (req: Request, res: Response): void => {
         ipAddress: req.ip || req.socket.remoteAddress,
         userAgent: req.get('User-Agent'),
         status: 'success'
-      });
+      }).catch((logErr) => logger.error('Failed to log logout:', logErr));
 
       // Also clean up from database
       if (sessionId) {
-        await sessionService.destroySession(sessionId);
+        sessionService.destroySession(sessionId).catch((dbErr) => logger.error('Failed to destroy session:', dbErr));
       }
 
       res.clearCookie('netadmin.sid');
@@ -263,10 +298,10 @@ router.get('/me', (req: Request, res: Response) => {
     data: {
       user: {
         id: user.id,
-        username: user.username,
+        username: user.name,
         email: user.email,
-        fullName: user.full_name,
-        lastLogin: user.last_login_at,
+        fullName: user.name,
+        lastLogin: user.last_login,
       },
       session: {
         expiresIn: 900, // 15 minutes

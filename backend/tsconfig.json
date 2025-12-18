@@ -8,12 +8,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "skipDefaultLibCheck": true,
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "removeComments": true,
     "noImplicitAny": true,
+    "typeRoots": ["./src/types", "./node_modules/@types"],
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": false,
@@ -25,12 +27,17 @@
   },
   "include": [
     "src/**/*",
-    "../shared/src/**/*"
+    "../shared/src/**/*",
+    "../types.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts"
-  ]
+  ],
+  "ts-node": {
+    "files": true,
+    "transpileOnly": true
+  }
 }

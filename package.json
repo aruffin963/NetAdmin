@@ -52,7 +52,9 @@
     "bcrypt": "^6.0.0",
     "connect-pg-simple": "^10.0.0",
     "express-session": "^1.18.2",
+    "net-snmp": "^3.26.0",
     "passport": "^0.7.0",
-    "passport-ldapauth": "^3.0.1"
+    "passport-ldapauth": "^3.0.1",
+    "ssh2": "^1.17.0"
   }
 }

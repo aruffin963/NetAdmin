@@ -497,11 +497,10 @@ export const ProfilePage: React.FC = () => {
       case 'notifications':
         showNotification(`Préférences de notification mises à jour`, 'info');
         break;
-      case 'autoRefresh': {
+      case 'autoRefresh':
         const refreshLabels = { '5': '5 secondes', '10': '10 secondes', '30': '30 secondes', '60': '1 minute', '300': '5 minutes', '0': 'désactivé' };
         showNotification(`Rafraîchissement automatique: ${refreshLabels[value as keyof typeof refreshLabels]}`, 'info');
         break;
-      }
       default:
         break;
     }

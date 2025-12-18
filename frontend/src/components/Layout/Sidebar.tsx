@@ -5,7 +5,6 @@ import {
   LayoutDashboard, 
   BarChart3, 
   Network, 
-  Globe,
   Database,
   Bell,
   FileText,
@@ -293,11 +292,6 @@ const Sidebar: React.FC = () => {
       label: 'Dashboard' 
     },
     { 
-      path: '/ip-management', 
-      icon: Database, 
-      label: 'Gestion IP' 
-    },
-    { 
       path: '/monitoring', 
       icon: BarChart3, 
       label: 'Monitoring' 
@@ -321,11 +315,6 @@ const Sidebar: React.FC = () => {
       path: '/scan', 
       icon: Search, 
       label: 'Scanner' 
-    },
-    { 
-      path: '/topology', 
-      icon: Globe, 
-      label: 'Topologie' 
     },
     { 
       path: '/passwords', 

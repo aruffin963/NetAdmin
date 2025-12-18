@@ -1,32 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { FaKey, FaCopy, FaTrash, FaRedo, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaKey, FaEye, FaCopy, FaTrash, FaRedo, FaEyeSlash, FaLock, FaCheck, FaPlus, FaShieldAlt } from 'react-icons/fa';
+
+// ============= STYLES =============
 
 const Container = styled.div`
-  padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  padding: 2rem;
+`;
+
+const CardWrapper = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 `;
 
 const Header = styled.div`
   margin-bottom: 2rem;
+  
+  h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
 `;
 
-const Title = styled.h1`
-  font-size: 2rem;
-  color: #2c3e50;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-`;
-
-const Subtitle = styled.p`
-  color: #7f8c8d;
-  font-size: 1rem;
-`;
-
-const Content = styled.div`
+const TwoColumn = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
@@ -36,20 +40,9 @@ const Content = styled.div`
   }
 `;
 
-const Card = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-`;
+// ============= FORM STYLES =============
 
-const CardTitle = styled.h2`
-  font-size: 1.5rem;
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-`;
-
-const Form = styled.form`
+const FormSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -62,36 +55,64 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  font-weight: 500;
+  font-weight: 600;
   color: #2c3e50;
   font-size: 0.95rem;
+  
+  .required {
+    color: #e74c3c;
+  }
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #dfe6e9;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.875rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
   transition: all 0.3s;
 
   &:focus {
     outline: none;
     border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
   }
 
   &:disabled {
-    background: #f8f9fa;
+    background-color: #f5f5f5;
     cursor: not-allowed;
+    color: #999;
   }
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
-  padding: 0.75rem 1.5rem;
+const TextArea = styled.textarea`
+  padding: 0.875rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.3s;
+
+  &:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
+  }
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' | 'success' }>`
+  padding: 0.875rem 1.5rem;
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
@@ -101,29 +122,29 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
 
   ${props => {
     switch (props.variant) {
+      case 'secondary':
+        return `
+          background: #ecf0f1;
+          color: #2c3e50;
+          &:hover { background: #d5dbdb; }
+        `;
       case 'danger':
         return `
           background: #e74c3c;
           color: white;
-          &:hover:not(:disabled) {
-            background: #c0392b;
-          }
+          &:hover { background: #c0392b; }
         `;
-      case 'secondary':
+      case 'success':
         return `
-          background: #95a5a6;
+          background: #27ae60;
           color: white;
-          &:hover:not(:disabled) {
-            background: #7f8c8d;
-          }
+          &:hover { background: #229954; }
         `;
       default:
         return `
           background: #3498db;
           color: white;
-          &:hover:not(:disabled) {
-            background: #2980b9;
-          }
+          &:hover { background: #2980b9; }
         `;
     }
   }}
@@ -134,129 +155,312 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
   }
 `;
 
-const GeneratedPasswordBox = styled.div`
-  background: #f8f9fa;
-  border: 2px solid #3498db;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-`;
-
-const PasswordDisplay = styled.div`
-  flex: 1;
-  font-family: 'Courier New', monospace;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #2c3e50;
-  word-break: break-all;
-`;
-
 const IconButton = styled.button`
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 0.5rem;
   color: #3498db;
-  transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
 
   &:hover {
+    background: rgba(52, 152, 219, 0.1);
     color: #2980b9;
-    transform: scale(1.1);
   }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+// ============= ALERT STYLES =============
+
+const Alert = styled.div<{ type: 'success' | 'error' | 'warning' }>`
+  padding: 1rem 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+
+  ${props => {
+    switch (props.type) {
+      case 'success':
+        return `
+          background: #d4edda;
+          color: #155724;
+          border: 1px solid #c3e6cb;
+        `;
+      case 'error':
+        return `
+          background: #f8d7da;
+          color: #721c24;
+          border: 1px solid #f5c6cb;
+        `;
+      case 'warning':
+        return `
+          background: #fff3cd;
+          color: #856404;
+          border: 1px solid #ffc107;
+        `;
+    }
+  }}
+`;
+
+// ============= GENERATED PASSWORD STYLES =============
+
+const GeneratedPasswordBox = styled.div`
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  padding: 1.5rem;
+  color: white;
+`;
+
+const GeneratedPasswordHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  
+  h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+`;
+
+const PasswordDisplayBox = styled.div`
+  background: rgba(255, 255, 255, 0.95);
+  color: #2c3e50;
+  padding: 1rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 500;
+  word-break: break-all;
+  margin-bottom: 1rem;
+`;
+
+const CopyButton = styled.button`
+  background: #27ae60;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #229954;
+    transform: translateY(-2px);
+  }
+`;
+
+const TimerBar = styled.div<{ percentage: number }>`
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: ${props => props.percentage}%;
+    background: #fff;
+    transition: width 0.1s linear;
+  }
+`;
+
+// ============= PASSWORD LIST STYLES =============
+
+const PasswordListSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `;
 
 const PasswordList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 600px;
+  max-height: 700px;
   overflow-y: auto;
+  padding-right: 0.5rem;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #bdc3c7;
+    border-radius: 4px;
+
+    &:hover {
+      background: #95a5a6;
+    }
+  }
 `;
 
-const PasswordItem = styled.div`
-  background: #f8f9fa;
+const PasswordCard = styled.div`
+  background: white;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  border: 1px solid #e9ecef;
+  padding: 1.25rem;
   transition: all 0.3s;
 
   &:hover {
     border-color: #3498db;
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
   }
 `;
 
-const PasswordItemHeader = styled.div`
+const PasswordCardHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
 `;
 
-const PasswordItemTitle = styled.div`
-  font-weight: 600;
-  color: #2c3e50;
+const PasswordTitle = styled.h4`
+  margin: 0;
   font-size: 1.1rem;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 `;
 
-const PasswordItemActions = styled.div`
+const PasswordActions = styled.div`
   display: flex;
   gap: 0.5rem;
 `;
 
-const PasswordItemDetails = styled.div`
+const PasswordDetails = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PasswordDetailRow = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 0.25rem;
+`;
+
+const PasswordDetailLabel = styled.span`
+  font-weight: 600;
   color: #7f8c8d;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
-const PasswordItemRow = styled.div`
+const PasswordDetailValue = styled.span`
+  color: #2c3e50;
+  word-break: break-all;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+`;
+
+const PasswordSecretSection = styled.div<{ unlocked: boolean }>`
+  background: ${props => props.unlocked ? '#d4edda' : '#fff3cd'};
+  border: 1px solid ${props => props.unlocked ? '#c3e6cb' : '#ffc107'};
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+`;
+
+const SecretPrompt = styled.div`
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
 `;
 
-const PasswordItemLabel = styled.span`
-  font-weight: 500;
-  min-width: 80px;
+const SecretInput = styled(Input)`
+  margin: 0;
 `;
 
-const PasswordValue = styled.div`
+const SecretButtonGroup = styled.div`
+  display: flex;
+  gap: 0.75rem;
+`;
+
+const SecretButton = styled(Button)`
   flex: 1;
-  font-family: 'Courier New', monospace;
-  background: white;
-  padding: 0.5rem;
-  border-radius: 4px;
+`;
+
+const PasswordValueDisplay = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  background: #ecf0f1;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  word-break: break-all;
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 3rem;
-  color: #95a5a6;
-`;
-
-const Alert = styled.div<{ type?: 'success' | 'error' }>`
-  padding: 1rem;
+  padding: 3rem 1rem;
+  color: #7f8c8d;
+  border: 2px dashed #bdc3c7;
   border-radius: 8px;
-  margin-bottom: 1rem;
-  ${props => props.type === 'success' 
-    ? 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;'
-    : 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'
+
+  svg {
+    font-size: 3rem;
+    color: #bdc3c7;
+    margin-bottom: 1rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.05rem;
   }
 `;
+
+const SecurityNote = styled.div`
+  background: #e8f4f8;
+  border-left: 4px solid #3498db;
+  padding: 1rem;
+  border-radius: 4px;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #2c3e50;
+`;
+
+// ============= TYPES =============
 
 interface Password {
   id: number;
@@ -268,7 +472,15 @@ interface Password {
   notes?: string;
 }
 
+interface AlertMessage {
+  type: 'success' | 'error' | 'warning';
+  message: string;
+}
+
+// ============= MAIN COMPONENT =============
+
 const PasswordGeneratorPage: React.FC = () => {
+  // Form state
   const [formData, setFormData] = useState({
     application: '',
     username: '',
@@ -276,15 +488,56 @@ const PasswordGeneratorPage: React.FC = () => {
     secretKey: '',
     notes: ''
   });
+
+  // Generation state
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [timerRemaining, setTimerRemaining] = useState(0);
+  const passwordCopiedRef = useRef(false);
+
+  // List state
   const [passwords, setPasswords] = useState<Password[]>([]);
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // UI state
+  const [alert, setAlert] = useState<AlertMessage | null>(null);
+  const alertTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Password viewing state
+  const [unlockedPasswords, setUnlockedPasswords] = useState<Map<number, string>>(new Map());
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
-  const [revealedPasswords, setRevealedPasswords] = useState<Map<number, string>>(new Map());
+  const [viewingSecretInput, setViewingSecretInput] = useState<Map<number, string>>(new Map());
+
+  // ============= EFFECTS =============
+
   useEffect(() => {
     fetchPasswords();
   }, []);
+
+  useEffect(() => {
+    if (timerRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimerRemaining(prev => {
+        const next = prev - 1;
+        if (next <= 0) {
+          // Clear password when timer expires
+          setGeneratedPassword(null);
+          passwordCopiedRef.current = false;
+        }
+        return Math.max(0, next);
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timerRemaining]);
+
+  // ============= HANDLERS =============
+
+  const showAlert = (type: AlertMessage['type'], message: string) => {
+    if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
+    setAlert({ type, message });
+    alertTimeoutRef.current = setTimeout(() => setAlert(null), 4000);
+  };
 
   const fetchPasswords = async () => {
     try {
@@ -294,14 +547,13 @@ const PasswordGeneratorPage: React.FC = () => {
         setPasswords(result.data);
       }
     } catch (error) {
-      console.error('Error fetching passwords:', error);
+      showAlert('error', 'Erreur lors du chargement des mots de passe');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleGeneratePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setAlert(null);
 
     try {
       const response = await fetch('http://localhost:5000/api/passwords/generate', {
@@ -311,7 +563,7 @@ const PasswordGeneratorPage: React.FC = () => {
           application: formData.application,
           username: formData.username,
           length: formData.length,
-          secretKey: formData.secretKey || undefined,
+          secretKey: formData.secretKey,
           notes: formData.notes || undefined
         })
       });
@@ -320,26 +572,90 @@ const PasswordGeneratorPage: React.FC = () => {
 
       if (result.success) {
         setGeneratedPassword(result.data.plainPassword);
-        setAlert({ type: 'success', message: 'Mot de passe généré avec succès!' });
+        setTimerRemaining(10);
+        passwordCopiedRef.current = false;
+        showAlert('success', 'Mot de passe généré! Vous avez 10 secondes pour le copier.');
+        setFormData({ application: '', username: '', length: 16, secretKey: '', notes: '' });
         fetchPasswords();
       } else {
-        setAlert({ type: 'error', message: result.message || 'Erreur lors de la génération' });
+        showAlert('error', result.message || 'Erreur lors de la génération');
       }
     } catch (error) {
-      setAlert({ type: 'error', message: 'Erreur de connexion au serveur' });
+      showAlert('error', 'Erreur de connexion au serveur');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopy = (text: string) => {
+  const handleCopyPassword = (text: string) => {
     navigator.clipboard.writeText(text);
-    setAlert({ type: 'success', message: 'Copié dans le presse-papier!' });
-    setTimeout(() => setAlert(null), 2000);
+    passwordCopiedRef.current = true;
+    showAlert('success', '✓ Copié dans le presse-papier!');
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce mot de passe?')) return;
+  const handleUnlockPassword = async (password: Password) => {
+    const secretInput = viewingSecretInput.get(password.id) || '';
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/passwords/${password.id}/reveal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secretKey: secretInput })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUnlockedPasswords(prev => {
+          const newMap = new Map(prev);
+          newMap.set(password.id, result.data.plainPassword);
+          return newMap;
+        });
+        setViewingSecretInput(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(password.id);
+          return newMap;
+        });
+        setVisiblePasswords(prev => new Set(prev).add(password.id));
+        showAlert('success', 'Mot de passe déverrouillé');
+      } else {
+        showAlert('error', 'Clé secrète incorrecte');
+      }
+    } catch (error) {
+      showAlert('error', 'Erreur lors du déverrouillage');
+    }
+  };
+
+  const handleRegeneratePassword = async (id: number) => {
+    if (!window.confirm('Régénérer ce mot de passe? L\'ancien sera perdu.')) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/passwords/${id}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showAlert('success', 'Mot de passe régénéré');
+        setUnlockedPasswords(prev => {
+          const newMap = new Map(prev);
+          newMap.set(id, result.data.plainPassword);
+          return newMap;
+        });
+        setVisiblePasswords(prev => new Set(prev).add(id));
+        fetchPasswords();
+      } else {
+        showAlert('error', 'Erreur lors de la régénération');
+      }
+    } catch (error) {
+      showAlert('error', 'Erreur de connexion');
+    }
+  };
+
+  const handleDeletePassword = async (id: number) => {
+    if (!window.confirm('Supprimer ce mot de passe? Cette action est irréversible.')) return;
 
     try {
       const response = await fetch(`http://localhost:5000/api/passwords/${id}`, {
@@ -347,36 +663,13 @@ const PasswordGeneratorPage: React.FC = () => {
       });
 
       const result = await response.json();
+
       if (result.success) {
-        setAlert({ type: 'success', message: 'Mot de passe supprimé' });
+        showAlert('success', 'Mot de passe supprimé');
         fetchPasswords();
       }
     } catch (error) {
-      setAlert({ type: 'error', message: 'Erreur lors de la suppression' });
-    }
-  };
-
-  const handleRegenerate = async (id: number) => {
-    if (!window.confirm('Régénérer le mot de passe? L\'ancien sera perdu.')) return;
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/passwords/${id}/regenerate`, {
-        method: 'POST'
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        setAlert({ type: 'success', message: 'Mot de passe régénéré!' });
-        setRevealedPasswords(prev => {
-          const newMap = new Map(prev);
-          newMap.set(id, result.data.plainPassword);
-          return newMap;
-        });
-        setVisiblePasswords(prev => new Set(prev).add(id));
-        fetchPasswords();
-      }
-    } catch (error) {
-      setAlert({ type: 'error', message: 'Erreur lors de la régénération' });
+      showAlert('error', 'Erreur lors de la suppression');
     }
   };
 
@@ -392,154 +685,288 @@ const PasswordGeneratorPage: React.FC = () => {
     });
   };
 
+  // ============= RENDER =============
+
   return (
     <Container>
       <Header>
-        <Title>
-          <FaKey /> Générateur de Mots de Passe
-        </Title>
-        <Subtitle>Créez et gérez des mots de passe sécurisés pour vos applications</Subtitle>
+        <h1>
+          <FaShieldAlt /> Gestionnaire de Mots de Passe Sécurisés
+        </h1>
       </Header>
 
-      {alert && <Alert type={alert.type}>{alert.message}</Alert>}
+      {alert && (
+        <Alert type={alert.type}>
+          {alert.type === 'success' && <FaCheck />}
+          {alert.message}
+        </Alert>
+      )}
 
-      <Content>
-        <Card>
-          <CardTitle>Générer un nouveau mot de passe</CardTitle>
-          <Form onSubmit={handleSubmit}>
-            <FormGroup>
-              <Label>Application *</Label>
-              <Input
-                type="text"
-                value={formData.application}
-                onChange={e => setFormData({ ...formData, application: e.target.value })}
-                placeholder="Ex: Base de données production"
-                required
-              />
-            </FormGroup>
+      <TwoColumn>
+        {/* LEFT COLUMN - GENERATION */}
+        <CardWrapper>
+          <FormSection>
+            <h2>Générer un Mot de Passe</h2>
+            
+            <SecurityNote>
+              <FaLock /> Les mots de passe sont générés de manière déterministe basée sur votre clé secrète.
+            </SecurityNote>
+            
+            <form onSubmit={handleGeneratePassword}>
+              <FormGroup>
+                <Label>
+                  Application <span className="required">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="ex: Gmail, GitHub, AWS..."
+                  value={formData.application}
+                  onChange={(e) => setFormData({ ...formData, application: e.target.value })}
+                  required
+                />
+              </FormGroup>
 
-            <FormGroup>
-              <Label>Nom d'utilisateur *</Label>
-              <Input
-                type="text"
-                value={formData.username}
-                onChange={e => setFormData({ ...formData, username: e.target.value })}
-                placeholder="Ex: admin"
-                required
-              />
-            </FormGroup>
+              <FormGroup>
+                <Label>
+                  Nom d'utilisateur <span className="required">*</span>
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="ex: john@example.com ou john.doe"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  required
+                />
+              </FormGroup>
 
-            <FormGroup>
-              <Label>Longueur (8-128 caractères)</Label>
-              <Input
-                type="number"
-                min="8"
-                max="128"
-                value={formData.length}
-                onChange={e => setFormData({ ...formData, length: parseInt(e.target.value) })}
-              />
-            </FormGroup>
+              <FormGroup>
+                <Label>
+                  Longueur <span className="required">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min="8"
+                  max="128"
+                  value={formData.length}
+                  onChange={(e) => setFormData({ ...formData, length: parseInt(e.target.value) })}
+                  required
+                />
+              </FormGroup>
 
-            <FormGroup>
-              <Label>Clé secrète (optionnel)</Label>
-              <Input
-                type="text"
-                value={formData.secretKey}
-                onChange={e => setFormData({ ...formData, secretKey: e.target.value })}
-                placeholder="Pour générer toujours le même mot de passe"
-              />
-            </FormGroup>
+              <FormGroup>
+                <Label>
+                  <FaLock /> Clé Secrète <span className="required">*</span>
+                </Label>
+                <Input
+                  type="password"
+                  placeholder="Clé pour reproduire le même mot de passe"
+                  value={formData.secretKey}
+                  onChange={(e) => setFormData({ ...formData, secretKey: e.target.value })}
+                  required
+                />
+              </FormGroup>
 
-            <FormGroup>
-              <Label>Notes (optionnel)</Label>
-              <Input
-                type="text"
-                value={formData.notes}
-                onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Informations supplémentaires"
-              />
-            </FormGroup>
+              <FormGroup>
+                <Label>Notes (optionnel)</Label>
+                <TextArea
+                  placeholder="ex: Compte professionnel, à renouveler chaque mois..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                />
+              </FormGroup>
 
-            <Button type="submit" disabled={loading}>
-              <FaKey /> {loading ? 'Génération...' : 'Générer le mot de passe'}
-            </Button>
-          </Form>
+              <ButtonGroup>
+                <Button type="submit" disabled={loading} variant="primary">
+                  <FaPlus /> {loading ? 'Génération...' : 'Générer'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="secondary"
+                  onClick={() => setFormData({ application: '', username: '', length: 16, secretKey: '', notes: '' })}
+                >
+                  Réinitialiser
+                </Button>
+              </ButtonGroup>
+            </form>
 
-          {generatedPassword && (
-            <GeneratedPasswordBox>
-              <PasswordDisplay>{generatedPassword}</PasswordDisplay>
-              <IconButton onClick={() => handleCopy(generatedPassword)} title="Copier">
-                <FaCopy size={20} />
-              </IconButton>
-            </GeneratedPasswordBox>
-          )}
-        </Card>
+            {/* Generated Password Display */}
+            {generatedPassword && timerRemaining > 0 && (
+              <GeneratedPasswordBox>
+                <GeneratedPasswordHeader>
+                  <h3>✨ Mot de passe généré</h3>
+                </GeneratedPasswordHeader>
 
-        <Card>
-          <CardTitle>Mots de passe enregistrés ({passwords.length})</CardTitle>
-          <PasswordList>
+                <PasswordDisplayBox>
+                  {generatedPassword}
+                  <CopyButton onClick={() => handleCopyPassword(generatedPassword)}>
+                    <FaCopy /> Copier
+                  </CopyButton>
+                </PasswordDisplayBox>
+
+                <div style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                  {passwordCopiedRef.current 
+                    ? '✓ Copié! Conservez-le en sécurité.'
+                    : 'Dépêchez-vous de le copier avant expiration'
+                  }
+                </div>
+                <TimerBar percentage={(timerRemaining / 10) * 100} />
+              </GeneratedPasswordBox>
+            )}
+          </FormSection>
+        </CardWrapper>
+
+        {/* RIGHT COLUMN - PASSWORD LIST */}
+        <CardWrapper>
+          <PasswordListSection>
+            <h2>Mots de Passe Enregistrés ({passwords.length})</h2>
+
             {passwords.length === 0 ? (
               <EmptyState>
-                <FaKey size={48} />
+                <FaKey />
                 <p>Aucun mot de passe enregistré</p>
               </EmptyState>
             ) : (
-              passwords.map(password => (
-                <PasswordItem key={password.id}>
-                  <PasswordItemHeader>
-                    <PasswordItemTitle>{password.application}</PasswordItemTitle>
-                    <PasswordItemActions>
-                      <IconButton onClick={() => handleRegenerate(password.id)} title="Régénérer">
-                        <FaRedo size={16} />
-                      </IconButton>
-                      <IconButton onClick={() => handleDelete(password.id)} title="Supprimer">
-                        <FaTrash size={16} color="#e74c3c" />
-                      </IconButton>
-                    </PasswordItemActions>
-                  </PasswordItemHeader>
-                  <PasswordItemDetails>
-                    <PasswordItemRow>
-                      <PasswordItemLabel>Username:</PasswordItemLabel>
-                      <span>{password.username}</span>
-                    </PasswordItemRow>
-                    <PasswordItemRow>
-                      <PasswordItemLabel>Longueur:</PasswordItemLabel>
-                      <span>{password.length} caractères</span>
-                    </PasswordItemRow>
-                    {revealedPasswords.has(password.id) && (
-                      <PasswordItemRow>
-                        <PasswordItemLabel>Mot de passe:</PasswordItemLabel>
-                        <PasswordValue>
-                          {visiblePasswords.has(password.id) 
-                            ? revealedPasswords.get(password.id)
-                            : '••••••••••••••••'
-                          }
-                          <IconButton onClick={() => togglePasswordVisibility(password.id)}>
-                            {visiblePasswords.has(password.id) ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+              <PasswordList>
+                {passwords.map(password => {
+                  const isUnlocked = unlockedPasswords.has(password.id);
+                  const isVisible = visiblePasswords.has(password.id);
+                  const secretValue = viewingSecretInput.get(password.id) || '';
+
+                  return (
+                    <PasswordCard key={password.id}>
+                      <PasswordCardHeader>
+                        <PasswordTitle>
+                          {password.secret_key && !isUnlocked && <FaLock size={14} />}
+                          {password.application}
+                        </PasswordTitle>
+                        <PasswordActions>
+                          <IconButton
+                            onClick={() => handleRegeneratePassword(password.id)}
+                            title="Régénérer"
+                          >
+                            <FaRedo />
                           </IconButton>
-                          <IconButton onClick={() => handleCopy(revealedPasswords.get(password.id)!)}>
-                            <FaCopy size={14} />
+                          <IconButton
+                            onClick={() => handleDeletePassword(password.id)}
+                            title="Supprimer"
+                            style={{ color: '#e74c3c' }}
+                          >
+                            <FaTrash />
                           </IconButton>
-                        </PasswordValue>
-                      </PasswordItemRow>
-                    )}
-                    <PasswordItemRow>
-                      <PasswordItemLabel>Créé le:</PasswordItemLabel>
-                      <span>{new Date(password.created_at).toLocaleString('fr-FR')}</span>
-                    </PasswordItemRow>
-                    {password.notes && (
-                      <PasswordItemRow>
-                        <PasswordItemLabel>Notes:</PasswordItemLabel>
-                        <span>{password.notes}</span>
-                      </PasswordItemRow>
-                    )}
-                  </PasswordItemDetails>
-                </PasswordItem>
-              ))
+                        </PasswordActions>
+                      </PasswordCardHeader>
+
+                      {!isUnlocked && (
+                        <Button 
+                          onClick={() => handleUnlockPassword(password)}
+                          variant="primary"
+                          style={{ width: '100%', marginBottom: '1rem' }}
+                        >
+                          <FaEye /> Afficher le mot de passe
+                        </Button>
+                      )}
+
+                      {isUnlocked && (
+                        <Button 
+                          variant="success"
+                          disabled
+                          style={{ width: '100%', marginBottom: '1rem' }}
+                        >
+                          <FaCheck /> Mot de passe déverrouillé
+                        </Button>
+                      )}
+
+                      <PasswordDetails>
+                        <PasswordDetailRow>
+                          <PasswordDetailLabel>Utilisateur</PasswordDetailLabel>
+                          <PasswordDetailValue>{password.username}</PasswordDetailValue>
+                        </PasswordDetailRow>
+                        <PasswordDetailRow>
+                          <PasswordDetailLabel>Longueur</PasswordDetailLabel>
+                          <PasswordDetailValue>{password.length} caractères</PasswordDetailValue>
+                        </PasswordDetailRow>
+                        <PasswordDetailRow>
+                          <PasswordDetailLabel>Créé</PasswordDetailLabel>
+                          <PasswordDetailValue>
+                            {new Date(password.created_at).toLocaleDateString('fr-FR')}
+                          </PasswordDetailValue>
+                        </PasswordDetailRow>
+                        {password.notes && (
+                          <PasswordDetailRow>
+                            <PasswordDetailLabel>Notes</PasswordDetailLabel>
+                            <PasswordDetailValue>{password.notes}</PasswordDetailValue>
+                          </PasswordDetailRow>
+                        )}
+                      </PasswordDetails>
+
+                      {/* Secret Key Management */}
+                      {!isUnlocked && (
+                        <PasswordSecretSection unlocked={false}>
+                          <SecretPrompt>
+                            <PasswordDetailLabel>🔐 Clé secrète requise</PasswordDetailLabel>
+                            <SecretInput
+                              type="password"
+                              placeholder="Entrez la clé secrète"
+                              value={secretValue}
+                              onChange={(e) => setViewingSecretInput(prev => {
+                                const newMap = new Map(prev);
+                                newMap.set(password.id, e.target.value);
+                                return newMap;
+                              })}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && secretValue) {
+                                  handleUnlockPassword(password);
+                                }
+                              }}
+                            />
+                            <SecretButtonGroup>
+                              <SecretButton
+                                onClick={() => handleUnlockPassword(password)}
+                                disabled={!secretValue}
+                                variant="primary"
+                              >
+                                Déverrouiller
+                              </SecretButton>
+                            </SecretButtonGroup>
+                          </SecretPrompt>
+                        </PasswordSecretSection>
+                      )}
+
+                      {isUnlocked && (
+                        <PasswordSecretSection unlocked={true}>
+                          <div>
+                            <PasswordDetailLabel style={{ display: 'block', marginBottom: '0.75rem' }}>
+                              Mot de passe
+                            </PasswordDetailLabel>
+                            <PasswordValueDisplay>
+                              {isVisible
+                                ? unlockedPasswords.get(password.id)
+                                : '••••••••••••••••'
+                              }
+                              <IconButton
+                                onClick={() => togglePasswordVisibility(password.id)}
+                                title={isVisible ? 'Masquer' : 'Afficher'}
+                              >
+                                {isVisible ? <FaEyeSlash /> : <FaEye />}
+                              </IconButton>
+                              <IconButton
+                                onClick={() => handleCopyPassword(unlockedPasswords.get(password.id)!)}
+                                title="Copier"
+                              >
+                                <FaCopy />
+                              </IconButton>
+                            </PasswordValueDisplay>
+                          </div>
+                        </PasswordSecretSection>
+                      )}
+                    </PasswordCard>
+                  );
+                })}
+              </PasswordList>
             )}
-          </PasswordList>
-        </Card>
-      </Content>
+          </PasswordListSection>
+        </CardWrapper>
+      </TwoColumn>
     </Container>
   );
 };

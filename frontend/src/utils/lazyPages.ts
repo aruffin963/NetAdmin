@@ -57,10 +57,3 @@ export const LazyProfilePage = withLazyLoading(
   }
 );
 
-export const LazyIPManagementPage = withLazyLoading(
-  () => import('../pages/IpManagement'),
-  {
-    title: "Chargement de la gestion IP...",
-    description: "Récupération des pools IP et calcul des statistiques d'utilisation"
-  }
-);

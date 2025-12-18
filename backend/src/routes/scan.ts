@@ -2,6 +2,14 @@ import { Router, Request, Response } from 'express';
 import { body, query, param, validationResult } from 'express-validator';
 import { DatabaseService } from '../config/database';
 import { logger } from '../utils/logger';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as dns from 'dns';
+import * as os from 'os';
+
+const execAsync = promisify(exec);
+const dnsReverse = promisify(dns.reverse);
+const dnsResolve4 = promisify(dns.resolve4);
 
 const router = Router();
 
@@ -163,16 +171,33 @@ const getRandomVendor = (): string => {
 };
 
 const resolveHostname = async (ip: string): Promise<string> => {
-  // Simulation de résolution DNS basée sur des patterns communs
+  try {
+    // Essayer une résolution DNS inverse
+    const hostnames = await dnsReverse(ip);
+    if (hostnames && hostnames.length > 0) {
+      return hostnames[0].replace(/\.$/, ''); // Enlever le point final
+    }
+  } catch (error) {
+    // Si la résolution inverse échoue, continuer
+  }
+
+  try {
+    // Essayer ping avec option -a (Windows) ou -r (Linux) pour afficher le hostname
+    const isWindows = os.platform() === 'win32';
+    if (isWindows) {
+      const { stdout } = await execAsync(`powershell -Command "try { [System.Net.Dns]::GetHostEntry('${ip}').HostName } catch { Write-Host 'unknown' }"`, { timeout: 3000 });
+      const hostname = stdout.trim();
+      if (hostname && hostname !== 'unknown') {
+        return hostname;
+      }
+    }
+  } catch (error) {
+    // Si la requête échoue, continuer
+  }
+
+  // Fallback: retourner un nom par défaut basé sur l'IP
   const lastOctet = ip.split('.').pop();
-  const patterns = [
-    `pc-${lastOctet}.local`,
-    `workstation-${lastOctet}.domain.com`,
-    `server-${lastOctet}.internal`,
-    `host-${lastOctet}.lan`,
-    `device-${lastOctet}.network`
-  ];
-  return patterns[Math.floor(Math.random() * patterns.length)];
+  return `host-${lastOctet}.local`;
 };
 
 // POST /api/scan/network - Lancer un scan réseau
@@ -626,6 +651,192 @@ router.delete('/:id', [
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la suppression du scan',
+      error: error.message
+    });
+  }
+});
+
+// Type pour les résultats de scan subnet
+interface SubnetScanResult {
+  ip: string;
+  hostname: string;
+  status: 'online' | 'offline';
+  responseTime: number;
+}
+
+// Type pour les résultats de scan de ports
+interface PortScanResult {
+  ip: string;
+  port: number;
+  protocol: string;
+  status: 'open' | 'closed';
+  service: string;
+  responseTime: number;
+}
+
+// POST /subnet - Scan de subnet rapide
+router.post('/subnet', [
+  body('network').matches(/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?:\/(?:[0-9]|[1-2][0-9]|3[0-2]))?$/).withMessage('Réseau CIDR invalide'),
+  body('timeout').optional().isInt({ min: 1, max: 30 }).withMessage('Timeout doit être entre 1 et 30 secondes')
+], handleValidationErrors, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { network, timeout = 5 } = req.body;
+    const results: SubnetScanResult[] = [];
+
+    // Parser le CIDR
+    const [networkPart, cidrStr] = network.split('/');
+    const baseParts = networkPart.split('.');
+    const baseNetwork = baseParts.slice(0, 3).join('.');
+    const cidr = parseInt(cidrStr) || 24;
+    
+    // Calculer la plage d'IPs
+    let maxHosts = 254; // /24
+    if (cidr === 25) maxHosts = 126;
+    else if (cidr === 26) maxHosts = 62;
+    else if (cidr > 24) maxHosts = Math.pow(2, 32 - cidr) - 2;
+
+    // Scanner un échantillon d'IPs (min 5, max 50)
+    const sampleSize = Math.min(Math.max(5, Math.floor(maxHosts / 5)), 50);
+    const ips: string[] = [];
+    
+    // Ajouter gateway (.1) et broadcast (.255)
+    ips.push(`${baseNetwork}.1`);
+    
+    // Ajouter des IPs aléatoires
+    for (let i = 0; i < sampleSize - 2; i++) {
+      const hostNum = Math.floor(Math.random() * Math.min(254, maxHosts)) + 2;
+      const ip = `${baseNetwork}.${hostNum}`;
+      if (!ips.includes(ip)) {
+        ips.push(ip);
+      }
+    }
+
+    // Ping chaque IP en parallèle
+    const pingPromises = ips.map(async (ip: string) => {
+      try {
+        const isWindows = os.platform() === 'win32';
+        const pingCmd = isWindows 
+          ? `ping -n 1 -w ${timeout * 1000} ${ip}`
+          : `ping -c 1 -W ${timeout * 1000} ${ip}`;
+
+        const startTime = Date.now();
+        await execAsync(pingCmd, { timeout: (timeout + 2) * 1000 });
+        const responseTime = Date.now() - startTime;
+
+        const hostname = await resolveHostname(ip);
+        
+        results.push({
+          ip,
+          hostname,
+          status: 'online',
+          responseTime
+        });
+      } catch (error) {
+        // IP offline
+        results.push({
+          ip,
+          hostname: 'unknown',
+          status: 'offline',
+          responseTime: 0
+        });
+      }
+    });
+
+    await Promise.all(pingPromises);
+
+    // Trier par IP
+    results.sort((a, b) => {
+      const aParts = a.ip.split('.').map(Number);
+      const bParts = b.ip.split('.').map(Number);
+      return aParts[3] - bParts[3];
+    });
+
+    res.json({
+      success: true,
+      data: results
+    });
+
+  } catch (error: any) {
+    logger.error('Erreur lors du scan de subnet:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors du scan',
+      error: error.message
+    });
+  }
+});
+
+// POST /ports - Scan de ports
+router.post('/ports', [
+  body('ip').isIP().withMessage('Adresse IP invalide'),
+  body('ports').matches(/^(\d+)(,\d+)*$/).withMessage('Format de ports invalide (ex: 22,80,443)'),
+  body('timeout').optional().isInt({ min: 1, max: 30 }).withMessage('Timeout doit être entre 1 et 30 secondes')
+], handleValidationErrors, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ip, ports: portStr, timeout = 5 } = req.body;
+    const portList: number[] = portStr.split(',').map(Number);
+    const results: PortScanResult[] = [];
+
+    // Service mapping pour ports courants
+    const serviceMap: Record<number, string> = {
+      21: 'FTP', 22: 'SSH', 23: 'Telnet', 25: 'SMTP', 53: 'DNS',
+      80: 'HTTP', 110: 'POP3', 143: 'IMAP', 443: 'HTTPS', 465: 'SMTPS',
+      587: 'SMTP-TLS', 993: 'IMAPS', 995: 'POP3S', 3306: 'MySQL', 5432: 'PostgreSQL',
+      3389: 'RDP', 5900: 'VNC', 8000: 'HTTP-ALT', 8080: 'HTTP-PROXY', 8443: 'HTTPS-ALT'
+    };
+
+    // Scanner chaque port en parallèle
+    const scanPromises = portList.map(async (port: number) => {
+      try {
+        const isWindows = os.platform() === 'win32';
+        let testCmd: string;
+
+        if (isWindows) {
+          testCmd = `powershell -Command "(New-Object System.Net.Sockets.TcpClient).Connect('${ip}', ${port})"`;
+        } else {
+          testCmd = `nc -zv -w ${timeout} ${ip} ${port}`;
+        }
+
+        const startTime = Date.now();
+        await execAsync(testCmd, { timeout: (timeout + 2) * 1000 });
+        const responseTime = Date.now() - startTime;
+
+        results.push({
+          ip,
+          port,
+          protocol: 'tcp',
+          status: 'open',
+          service: serviceMap[port] || 'Unknown',
+          responseTime
+        });
+      } catch (error) {
+        // Port closed
+        results.push({
+          ip,
+          port,
+          protocol: 'tcp',
+          status: 'closed',
+          service: serviceMap[port] || 'Unknown',
+          responseTime: 0
+        });
+      }
+    });
+
+    await Promise.all(scanPromises);
+
+    // Trier par port
+    results.sort((a, b) => a.port - b.port);
+
+    res.json({
+      success: true,
+      data: results
+    });
+
+  } catch (error: any) {
+    logger.error('Erreur lors du scan de ports:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors du scan',
       error: error.message
     });
   }

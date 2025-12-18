@@ -2,13 +2,11 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
-import IpManagement from './pages/IpManagement';
-import Monitoring from './pages/Monitoring';
+import AgentlessMonitoring from './pages/AgentlessMonitoring';
 import Alerts from './pages/Alerts';
 import ActivityLogsPage from './pages/ActivityLogsPage';
 import Subnetting from './pages/Subnetting';
-import { ScanPage } from './pages/ScanPage';
-import Topology from './pages/Topology';
+import ScanPage from './pages/ScanPage';
 import { ProfilePage } from './pages/ProfilePage';
 import PasswordGeneratorPage from './pages/PasswordGeneratorPage';
 import AutoSaveDemo from './pages/AutoSaveDemo';
@@ -36,13 +34,11 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/ip-management" element={<IpManagement />} />
-        <Route path="/monitoring" element={<Monitoring />} />
+        <Route path="/monitoring" element={<AgentlessMonitoring />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/logs" element={<ActivityLogsPage />} />
         <Route path="/subnetting" element={<Subnetting />} />
         <Route path="/scan" element={<ScanPage />} />
-        <Route path="/topology" element={<Topology />} />
         <Route path="/passwords" element={<PasswordGeneratorPage />} />
         <Route path="/autosave-demo" element={<AutoSaveDemo />} />
         <Route path="/profile" element={<ProfilePage />} />

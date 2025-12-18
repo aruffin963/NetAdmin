@@ -117,9 +117,24 @@ NetAdmin/
 - ✅ Surveillance d'équipements en temps réel
 - ✅ Métriques système (CPU, RAM, disque, réseau)
 - ✅ Statut de disponibilité (ping)
-- ✅ Alertes et notifications
+- ✅ Alertes dynamiques basées sur les métriques
 - ✅ Graphiques de performance
 - ✅ Historique des métriques
+
+### 🚨 Système d'Alertes Avancé
+- ✅ Alertes temps réel depuis logs d'activité et métriques
+- ✅ Niveaux de sévérité (Urgence, Critique, Avertissement, Info)
+- ✅ Filtrage avancé (par sévérité et statut)
+- ✅ Recherche full-text (titre, message, équipement)
+- ✅ Seuils d'alerte intelligents :
+  - CPU > 80% (Avertissement), > 95% (Critique)
+  - Mémoire > 85% (Avertissement), > 95% (Critique)
+  - Disque > 90% (Critique)
+  - Erreurs d'activité automatiquement détectées
+  - Actions de suppression marquées comme avertissements
+- ✅ Actions sur alertes (Acquitter, Supprimer)
+- ✅ Export CSV des alertes filtrées
+- ✅ Interface moderne et responsive
 
 ### 🔍 Scanner Réseau
 - ✅ Scan de plages IP configurables
@@ -231,25 +246,28 @@ Voir [QUICKSTART.md](QUICKSTART.md) pour plus de détails.
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [QUICKSTART.md](QUICKSTART.md) | Guide de démarrage rapide pour le développement |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Guide complet de déploiement en production |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Guide de contribution au projet |
-| [CHANGELOG.md](CHANGELOG.md) | Historique des versions et modifications |
+Pour des informations détaillées sur l'utilisation et le déploiement du projet, consultez :
+
+### Guides Disponibles
+
+- **Frontend** : `frontend/` - Application React avec composants et pages
+- **Backend** : `backend/` - API Node.js/Express
+- **Documentation de Code** : Commentaires inline dans les fichiers source
 
 ### API Documentation
 
-L'API REST est documentée et accessible :
+L'API REST est accessible et bien documentée :
 
 **Endpoints principaux** :
 - `GET /api/health` - Health check
 - `POST /api/auth/login` - Authentification
 - `GET /api/ip/pools` - Liste des pools IP
-- `GET /api/monitoring/devices` - Équipements monitorés
-- `POST /api/scanner/scan` - Lancer un scan
-- `GET /api/organizations` - Organisations
-- `GET /api/logs/activity` - Logs d'audit
+- `GET /api/agentless/devices` - Équipements monitorés
+- `GET /api/agentless/metrics/{device_id}` - Métriques d'un équipement
+- `GET /api/activity-logs` - Logs d'activité
+- `GET /api/alerts` - Alertes générées
+- `POST /api/alerts/{id}/acknowledge` - Acquitter une alerte
+- `DELETE /api/alerts/{id}` - Supprimer une alerte
 
 ## 🛠️ Développement
 
@@ -274,6 +292,40 @@ npm run preview  # Prévisualiser le build
 npm run lint     # Vérifier le code
 npm test         # Exécuter les tests
 ```
+
+### Pages Principales
+
+#### **Dashboard** (`frontend/src/pages/Dashboard.tsx`)
+Vue d'ensemble temps réel avec:
+- Métriques système globales
+- Statistiques réseau
+- Équipements récemment monitorés
+- Alertes critiques
+
+#### **Alertes** (`frontend/src/pages/Alerts.tsx`)
+Page complète de gestion des alertes avec:
+- Tableau interactif des alertes temps réel
+- Filtrage par sévérité (Urgence, Critique, Avertissement, Info)
+- Filtrage par statut (Actif, Acquitté, Résolu)
+- Recherche full-text
+- Actions par alerte (Acquitter, Supprimer)
+- Export CSV
+- Interface responsive (desktop & mobile)
+- Intégration directe aux API de logs et métriques
+
+#### **Équipements** (`frontend/src/pages/DevicesPage.tsx`)
+Gestion des équipements avec:
+- Liste de tous les équipements
+- Métriques temps réel
+- Statut de chaque équipement
+- Historique des métriques
+
+#### **Logs d'Activité** (`frontend/src/pages/ActivityLogsPage.tsx`)
+Audit complet avec:
+- Historique de toutes les actions
+- Filtrage et recherche
+- Détails des modifications
+- Traçabilité utilisateur
 
 ### Variables d'Environnement
 
@@ -322,17 +374,44 @@ Le projet utilise GitHub Actions pour :
 - ✅ Déploiement automatique en production
 - ✅ Vérification hebdomadaire des dépendances
 
+## 📊 État du Projet
+
+### ✅ Fonctionnalités Complètement Réalisées
+
+#### Alertes et Monitoring
+- ✅ **Système d'alertes complet** - Page Alerts.tsx avec UI moderne
+  - Intégration aux logs d'activité (`/api/activity-logs`)
+  - Intégration aux métriques système (`/api/agentless/metrics/{device_id}`)
+  - Génération automatique d'alertes basée sur les seuils
+  - Filtrage avancé et recherche full-text
+  - Actions (Acquitter, Supprimer)
+  - Export CSV
+  - Interface responsive et ergonomique
+
+#### Architecture & Code Quality
+- ✅ **TypeScript** - Typage fort partout dans le projet
+- ✅ **Styled Components** - CSS-in-JS moderne et scoped
+- ✅ **API REST** - Endpoints bien structurés et documentés
+- ✅ **Gestion d'erreurs** - Complète et cohérente
+- ✅ **Nettoyage du projet** - Suppression des fichiers inutiles et documentation obsolète
+
+### 🔄 Intégrations API Actives
+
+- `GET /api/activity-logs` - Récupère les logs d'activité
+- `GET /api/agentless/devices` - Liste tous les équipements
+- `GET /api/agentless/metrics/{device_id}` - Métriques d'un équipement
+- `POST /api/alerts/{id}/acknowledge` - Marque une alerte comme acquittée
+- `DELETE /api/alerts/{id}` - Supprime une alerte
+
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! Pour contribuer :
+Les contributions sont les bienvenues ! Avant de contribuer, veuillez :
 
 1. 🍴 Fork le projet
 2. 🌿 Créer une branche (`git checkout -b feature/AmazingFeature`)
 3. 💾 Commit les changements (`git commit -m 'feat: Add AmazingFeature'`)
 4. 📤 Push vers la branche (`git push origin feature/AmazingFeature`)
 5. 🔀 Ouvrir une Pull Request
-
-Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les guidelines détaillées.
 
 ### Convention de Commits
 
@@ -389,16 +468,15 @@ Si vous découvrez une faille de sécurité, merci de nous contacter directement
 
 Développé avec ❤️ par l'équipe NetAdmin
 
-### Technologies Utilisées
+### Technologies Clés
 
-- [React](https://reactjs.org/) - Interface utilisateur
-- [TypeScript](https://www.typescriptlang.org/) - Typage statique
+- [React 18](https://reactjs.org/) - Interface utilisateur moderne
+- [TypeScript](https://www.typescriptlang.org/) - Typage statique robuste
 - [Node.js](https://nodejs.org/) - Runtime serveur
-- [Express](https://expressjs.com/) - Framework web
-- [PostgreSQL](https://www.postgresql.org/) - Base de données
-- [Material-UI](https://mui.com/) - Composants UI
-- [React Query](https://tanstack.com/query) - Data fetching
-- [React Flow](https://reactflow.dev/) - Visualisation réseau
+- [Express.js](https://expressjs.com/) - Framework web léger
+- [PostgreSQL](https://www.postgresql.org/) - Base de données relationnelle
+- [Styled Components](https://styled-components.com/) - CSS-in-JS
+- [React Icons](https://react-icons.github.io/react-icons/) - Icônes modernes
 
 ## � License
 

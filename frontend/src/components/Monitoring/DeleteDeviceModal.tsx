@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { NetworkDevice } from '../../types/monitoring';
 
@@ -8,6 +8,11 @@ interface DeleteDeviceModalProps {
   onClose: () => void;
   onConfirm: () => void;
   isDeleting: boolean;
+}
+
+// Styles  
+interface ButtonProps {
+  variant: 'secondary' | 'danger';
 }
 
 const ModalOverlay = styled.div`
@@ -129,6 +134,50 @@ const WarningMessage = styled.div`
   color: #92400e;
 `;
 
+const ConfirmationSection = styled.div`
+  background: #fee2e2;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+`;
+
+const ConfirmationLabel = styled.label`
+  display: block;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 8px;
+  font-size: 14px;
+`;
+
+const ConfirmationInput = styled.input`
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ef4444;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  }
+
+  &::placeholder {
+    color: #fca5a5;
+  }
+`;
+
+const ConfirmationHint = styled.div`
+  margin-top: 8px;
+  font-size: 12px;
+  color: #991b1b;
+  font-style: italic;
+`;
+
 const WarningTitle = styled.div`
   font-weight: 600;
   margin-bottom: 8px;
@@ -155,7 +204,7 @@ const ModalFooter = styled.div`
   justify-content: flex-end;
 `;
 
-const Button = styled.button<{ variant: 'secondary' | 'danger' }>`
+const Button = styled.button<ButtonProps>`
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 500;
@@ -182,13 +231,14 @@ const Button = styled.button<{ variant: 'secondary' | 'danger' }>`
     background: #dc2626;
     color: white;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: #b91c1c;
     }
 
     &:disabled {
       background: #9ca3af;
       cursor: not-allowed;
+      opacity: 0.6;
     }
   `}
 `;
@@ -215,7 +265,11 @@ export const DeleteDeviceModal: React.FC<DeleteDeviceModalProps> = ({
   onConfirm,
   isDeleting
 }) => {
+  const [confirmationText, setConfirmationText] = useState('');
+
   if (!isOpen || !device) return null;
+
+  const isConfirmationCorrect = confirmationText === device.name;
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -243,6 +297,13 @@ export const DeleteDeviceModal: React.FC<DeleteDeviceModalProps> = ({
       case 'printer': return 'Imprimante';
       case 'access_point': return 'Point d\'accès';
       default: return type;
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (isConfirmationCorrect) {
+      onConfirm();
+      setConfirmationText('');
     }
   };
 
@@ -293,6 +354,27 @@ export const DeleteDeviceModal: React.FC<DeleteDeviceModalProps> = ({
             )}
           </DeviceInfo>
 
+          <ConfirmationSection>
+            <ConfirmationLabel>
+              Pour confirmer, veuillez entrer le nom de l'équipement :
+            </ConfirmationLabel>
+            <ConfirmationInput
+              type="text"
+              value={confirmationText}
+              onChange={(e) => setConfirmationText(e.target.value)}
+              placeholder={device.name}
+              disabled={isDeleting}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && isConfirmationCorrect) {
+                  handleConfirmDelete();
+                }
+              }}
+            />
+            <ConfirmationHint>
+              ✓ Entrez exactement : <strong>{device.name}</strong>
+            </ConfirmationHint>
+          </ConfirmationSection>
+
           <WarningMessage>
             <WarningTitle>
               ⚠️ Attention
@@ -317,8 +399,8 @@ export const DeleteDeviceModal: React.FC<DeleteDeviceModalProps> = ({
           </Button>
           <Button
             variant="danger"
-            onClick={onConfirm}
-            disabled={isDeleting}
+            onClick={handleConfirmDelete}
+            disabled={isDeleting || !isConfirmationCorrect}
           >
             {isDeleting ? (
               <>

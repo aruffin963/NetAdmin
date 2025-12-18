@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
-import NetworkUsageChart from '../components/Dashboard/NetworkUsageChart';
-import IPDistributionChart from '../components/Dashboard/IPDistributionChart';
 import { 
   Globe, 
   Wifi, 
@@ -413,71 +411,13 @@ const StatsIcon = styled.div<{ color: string }>`
 
 const MainGrid = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 32px;
   margin-bottom: 32px;
   animation: ${fadeInUp} 1s ease-out 0.4s both;
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
-  }
-`;
-
-const ChartsSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-`;
-
-const ChartCard = styled.div`
-  background: white;
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-  }
-  
-  .chart-header {
-    display: flex;
-    align-items: center;
-    justify-content: between;
-    margin-bottom: 28px;
-    
-    .left {
-      flex: 1;
-    }
-    
-    h3 {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1f2937;
-      margin: 0 0 4px 0;
-    }
-    
-    .subtitle {
-      font-size: 14px;
-      color: #6b7280;
-      margin: 0;
-    }
-    
-    .chart-actions {
-      display: flex;
-      gap: 8px;
-    }
-    
-    .time-badge {
-      font-size: 12px;
-      color: #60a5fa;
-      background: #f0f4ff;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-weight: 500;
-    }
   }
 `;
 
@@ -931,7 +871,7 @@ const Dashboard: React.FC = () => {
       <Header>
         <div className="top-row">
           <div className="title-section">
-            <h1>📊 Dashboard</h1>
+            <h1>Dashboard</h1>
             <div className="last-update">
               <RefreshCw />
               <span>Dernière mise à jour: {currentTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -994,37 +934,77 @@ const Dashboard: React.FC = () => {
         })}
       </StatsGrid>
 
+      {/* Additional Stats - Moved up after first 4 cards */}
+      {stats && (
+        <StatsGrid style={{ marginBottom: '32px' }}>
+          <ProfessionalStatsCard color="blue" index={0}>
+            <StatsContent>
+              <StatsInfo>
+                <div className="number">{stats.pools}</div>
+                <div className="label">POOLS IP</div>
+                <div className="trend positive">
+                  <Database size={12} />
+                  Gestion centralisée
+                </div>
+              </StatsInfo>
+              <StatsIcon color="blue">
+                <Database />
+              </StatsIcon>
+            </StatsContent>
+          </ProfessionalStatsCard>
+
+          <ProfessionalStatsCard color="green" index={1}>
+            <StatsContent>
+              <StatsInfo>
+                <div className="number">{stats.organizations}</div>
+                <div className="label">ORGANISATIONS</div>
+                <div className="trend positive">
+                  <Server size={12} />
+                  {stats.subnets} sous-réseaux
+                </div>
+              </StatsInfo>
+              <StatsIcon color="green">
+                <Server />
+              </StatsIcon>
+            </StatsContent>
+          </ProfessionalStatsCard>
+
+          <ProfessionalStatsCard color="purple" index={2}>
+            <StatsContent>
+              <StatsInfo>
+                <div className="number">{stats.addresses.allocated}</div>
+                <div className="label">IPs ALLOUÉES</div>
+                <div className="trend positive">
+                  <Globe size={12} />
+                  {stats.addresses.available} disponibles
+                </div>
+              </StatsInfo>
+              <StatsIcon color="purple">
+                <Globe />
+              </StatsIcon>
+            </StatsContent>
+          </ProfessionalStatsCard>
+
+          <ProfessionalStatsCard color="orange" index={3}>
+            <StatsContent>
+              <StatsInfo>
+                <div className="number">{stats.addresses.reserved}</div>
+                <div className="label">IPs RÉSERVÉES</div>
+                <div className="trend positive">
+                  <Cpu size={12} />
+                  Usage optimisé
+                </div>
+              </StatsInfo>
+              <StatsIcon color="orange">
+                <Cpu />
+              </StatsIcon>
+            </StatsContent>
+          </ProfessionalStatsCard>
+        </StatsGrid>
+      )}
+
       {/* Main Content Grid */}
       <MainGrid>
-        {/* Charts Section */}
-        <ChartsSection>
-          <ChartCard>
-            <div className="chart-header">
-              <div className="left">
-                <h3>Utilisation Réseau</h3>
-                <p className="subtitle">Trafic en temps réel sur les dernières 24h</p>
-              </div>
-              <div className="chart-actions">
-                <div className="time-badge">24h</div>
-              </div>
-            </div>
-            <NetworkUsageChart />
-          </ChartCard>
-
-          <ChartCard>
-            <div className="chart-header">
-              <div className="left">
-                <h3>Répartition des Adresses IP</h3>
-                <p className="subtitle">Distribution par pool et statut</p>
-              </div>
-              <div className="chart-actions">
-                <div className="time-badge">Live</div>
-              </div>
-            </div>
-            <IPDistributionChart />
-          </ChartCard>
-        </ChartsSection>
-
         {/* Side Panel */}
         <SidePanel>
           {/* System Metrics */}
@@ -1091,74 +1071,7 @@ const Dashboard: React.FC = () => {
         </SidePanel>
       </MainGrid>
 
-      {/* Additional Stats */}
-      {stats && (
-        <StatsGrid style={{ marginTop: '0' }}>
-          <ProfessionalStatsCard color="blue" index={0}>
-            <StatsContent>
-              <StatsInfo>
-                <div className="number">{stats.pools}</div>
-                <div className="label">POOLS IP</div>
-                <div className="trend positive">
-                  <Database size={12} />
-                  Gestion centralisée
-                </div>
-              </StatsInfo>
-              <StatsIcon color="blue">
-                <Database />
-              </StatsIcon>
-            </StatsContent>
-          </ProfessionalStatsCard>
-
-          <ProfessionalStatsCard color="green" index={1}>
-            <StatsContent>
-              <StatsInfo>
-                <div className="number">{stats.organizations}</div>
-                <div className="label">ORGANISATIONS</div>
-                <div className="trend positive">
-                  <Server size={12} />
-                  {stats.subnets} sous-réseaux
-                </div>
-              </StatsInfo>
-              <StatsIcon color="green">
-                <Server />
-              </StatsIcon>
-            </StatsContent>
-          </ProfessionalStatsCard>
-
-          <ProfessionalStatsCard color="purple" index={2}>
-            <StatsContent>
-              <StatsInfo>
-                <div className="number">{stats.addresses.allocated}</div>
-                <div className="label">IPs ALLOUÉES</div>
-                <div className="trend positive">
-                  <Globe size={12} />
-                  {stats.addresses.available} disponibles
-                </div>
-              </StatsInfo>
-              <StatsIcon color="purple">
-                <Globe />
-              </StatsIcon>
-            </StatsContent>
-          </ProfessionalStatsCard>
-
-          <ProfessionalStatsCard color="orange" index={3}>
-            <StatsContent>
-              <StatsInfo>
-                <div className="number">{stats.addresses.reserved}</div>
-                <div className="label">IPs RÉSERVÉES</div>
-                <div className="trend positive">
-                  <Cpu size={12} />
-                  Usage optimisé
-                </div>
-              </StatsInfo>
-              <StatsIcon color="orange">
-                <Cpu />
-              </StatsIcon>
-            </StatsContent>
-          </ProfessionalStatsCard>
-        </StatsGrid>
-      )}
+      {/* Additional Stats - Removed from here since moved up */}
     </DashboardContainer>
   );
 };

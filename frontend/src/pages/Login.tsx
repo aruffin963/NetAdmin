@@ -324,14 +324,14 @@ const Login: React.FC = () => {
           {error && <ErrorMessage>{error}</ErrorMessage>}
           
           <FormGroup>
-            <Label htmlFor="username">Nom d'utilisateur LDAP</Label>
+            <Label htmlFor="username">Nom d'utilisateur ou Email</Label>
             <InputContainer>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="votre.nom"
+                placeholder="admin ou admin@localhost.com"
                 required
                 autoComplete="username"
               />
@@ -358,8 +358,8 @@ const Login: React.FC = () => {
         </Form>
 
         <DemoInfo>
-          <h4> Authentification LDAP</h4>
-          <p>Utilisez vos identifiants Active Directory</p>
+          <h4>Authentification Locale</h4>
+          <p>Utilisez vos identifiants de connexion</p>
           <p><small>Session valide 15 minutes après la dernière activité</small></p>
         </DemoInfo>
       </LoginCard>

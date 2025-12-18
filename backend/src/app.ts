@@ -28,6 +28,7 @@ import { topologyRoutes } from './routes/topology';
 import passwordRoutes from './routes/passwords';
 import autoSaveRoutes from './routes/autoSave';
 import networkRoutes from './routes/network';
+import agentlessMonitoringRoutes from './routes/agentlessMonitoring';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,8 +47,12 @@ app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
   ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
@@ -88,6 +93,7 @@ app.use('/api/topology', topologyRoutes);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/autosave', autoSaveRoutes);
 app.use('/api/network', networkRoutes);
+app.use('/api/agentless', agentlessMonitoringRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
