@@ -54,7 +54,7 @@ export const useNetworkTopology = () => {
     queryKey: ['networkTopology'],
     queryFn: async (): Promise<NetworkTopologyData> => {
       const response = await axios.get(`${API_BASE_URL}/monitoring/topology`);
-      return response.data;
+      return (response.data as any) || { devices: [], connections: [], subnets: [], statistics: {} };
     },
     staleTime: 30000, // 30 secondes
     refetchInterval: 60000, // Rafraîchir toutes les minutes
@@ -68,7 +68,7 @@ export const useDeviceDetails = (deviceId?: string) => {
     queryFn: async (): Promise<NetworkDevice> => {
       if (!deviceId) throw new Error('Device ID is required');
       const response = await axios.get(`${API_BASE_URL}/monitoring/devices/${deviceId}`);
-      return response.data;
+      return (response.data as any) || { id: '', name: '', hostname: '', ip: '', status: 'unknown' };
     },
     enabled: !!deviceId,
   });

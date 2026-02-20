@@ -24,7 +24,7 @@ export const useOrganizations = () => {
     queryKey: ['organizations'],
     queryFn: async (): Promise<Organization[]> => {
       const response = await axios.get(`${API_BASE_URL}/organizations`);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
   });
 };
@@ -36,7 +36,7 @@ export const useCreateOrganization = () => {
   return useMutation({
     mutationFn: async (data: CreateOrganizationDto): Promise<Organization> => {
       const response = await axios.post(`${API_BASE_URL}/organizations`, data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });

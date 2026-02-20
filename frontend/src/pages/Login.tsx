@@ -658,16 +658,16 @@ const Login: React.FC = () => {
       console.log('Sending 2FA verification:', { endpoint, userId: twoFAUserId, codeLength: code.length });
 
       const response = await apiClient.post(endpoint, payload);
-      console.log('2FA verification response:', response.data);
+      console.log('2FA verification response:', (response as any)?.data || response);
       
-      if (response.data.success) {
+      if ((response as any)?.success || (response as any)?.data?.success) {
         // Wait a bit for session cookies to be set, then redirect
         console.log('2FA successful, redirecting to dashboard in 500ms...');
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 500);
       } else {
-        setError(response.data.error || 'Verification failed');
+        setError((response as any)?.error || (response as any)?.data?.error || 'Verification failed');
       }
     } catch (error: any) {
       console.error('2FA verification error:', error);

@@ -335,9 +335,9 @@ export default function TwoFactorAuth() {
     try {
       setLoading(true);
       const response = await apiClient.get('/auth/2fa/status');
-      setStatus(response.data);
+      setStatus((response as any)?.data || response || null);
 
-      if (response.data.enabled) {
+      if ((response as any)?.enabled || (response as any)?.data?.enabled) {
         fetchHistory();
       }
     } catch (error) {
@@ -351,7 +351,7 @@ export default function TwoFactorAuth() {
   const fetchHistory = async () => {
     try {
       const response = await apiClient.get('/auth/2fa/history');
-      setHistory(response.data.history);
+      setHistory((response as any)?.history || (response as any)?.data?.history || []);
     } catch (error) {
       console.error('Error fetching history:', error);
     }
@@ -361,7 +361,7 @@ export default function TwoFactorAuth() {
     try {
       setLoading(true);
       const response = await apiClient.post('/auth/2fa/setup');
-      setSetupData(response.data);
+      setSetupData((response as any)?.data || {});
       setMessage({ type: 'success', text: 'Setup started. Scan QR code with authenticator app.' });
     } catch (error) {
       console.error('Error starting setup:', error);
@@ -434,7 +434,7 @@ export default function TwoFactorAuth() {
           setSetupData({
             secret: '',
             qrCode: '',
-            backupCodes: response.data.backupCodes,
+            backupCodes: (response as any)?.backupCodes || [],
           });
           setShowBackupCodes(true);
           setMessage({ type: 'success', text: 'New backup codes generated' });

@@ -29,7 +29,7 @@ export class SettingsService {
   static async getSettings(): Promise<UserSettings> {
     try {
       const response = await apiClient.get<UserSettings>('/settings');
-      return response as UserSettings || {};
+      return (response as any) || {};
     } catch (error: any) {
       console.error('Error fetching settings:', error);
       throw error;
@@ -42,7 +42,7 @@ export class SettingsService {
   static async updateSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
     try {
       const response = await apiClient.post<UserSettings>('/settings', settings);
-      return response as UserSettings || {};
+      return (response as any) || {};
     } catch (error: any) {
       console.error('Error updating settings:', error);
       throw error;

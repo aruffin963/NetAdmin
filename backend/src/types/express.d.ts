@@ -21,6 +21,14 @@ declare global {
       created_at: Date;
       updated_at: Date;
     }
+
+    interface Request {
+      isAuthenticated(): boolean;
+      isUnauthenticated(): boolean;
+      user?: User;
+      login(user: any, done: (err: any) => void): void;
+      logout(done: (err: any) => void): void;
+    }
   }
 }
 

@@ -61,7 +61,7 @@ export const LogsService = {
     const response = await apiClient.get('/api/logs', { params });
     
     // Transformar datos del backend para correspondencia correcta
-    const transformedData = response.data.data.map((log: any) => ({
+    const transformedData = (response.data as any).data.map((log: any) => ({
       id: log.id,
       timestamp: log.created_at || log.timestamp,
       level: log.status || log.level || 'info',
@@ -76,10 +76,10 @@ export const LogsService = {
     }));
 
     return {
-      success: response.data.success,
+      success: (response.data as any).success,
       data: transformedData,
-      total: response.data.total,
-      pagination: response.data.pagination
+      total: (response.data as any).total,
+      pagination: (response.data as any).pagination
     };
   },
 
@@ -90,7 +90,7 @@ export const LogsService = {
     const response = await apiClient.get('/api/logs/recent', { 
       params: { limit } 
     });
-    return response.data.data || [];
+    return (response.data as any)?.data || [];
   },
 
   /**
@@ -103,7 +103,7 @@ export const LogsService = {
       if (filters?.endDate) params.append('end_date', filters.endDate.toISOString());
       
       const response = await apiClient.get('/api/logs/stats', { params });
-      return response.data.data || {
+      return (response.data as any)?.data || {
         total: 0,
         byLevel: { error: 0, warning: 0, info: 0, debug: 0 },
         byCategory: {}
@@ -122,7 +122,7 @@ export const LogsService = {
    */
   async archiveLogs(filters: LogFilter): Promise<any> {
     const response = await apiClient.post('/api/logs/archive', filters);
-    return response.data;
+    return (response.data as any);
   },
 
   /**
@@ -133,7 +133,7 @@ export const LogsService = {
       params: filters,
       responseType: 'blob'
     });
-    return response.data;
+    return (response.data as Blob);
   },
 
   /**
@@ -141,7 +141,7 @@ export const LogsService = {
    */
   async deleteLogs(filters: LogFilter): Promise<any> {
     const response = await apiClient.post('/api/logs/delete', filters);
-    return response.data;
+    return (response.data as any);
   },
 
   /**
@@ -150,7 +150,7 @@ export const LogsService = {
   async getCategories(): Promise<string[]> {
     try {
       const response = await apiClient.get('/api/logs/categories');
-      return response.data.data || [];
+      return (response.data as any)?.data || [];
     } catch {
       return ['device', 'authentication', 'alert', 'configuration', 'request', 'user', 'discovery'];
     }
@@ -162,7 +162,7 @@ export const LogsService = {
   async getSources(): Promise<string[]> {
     try {
       const response = await apiClient.get('/api/logs/sources');
-      return response.data.data || [];
+      return (response.data as any)?.data || [];
     } catch {
       return ['system', 'api', 'scheduled_task', 'webhook', 'manual'];
     }

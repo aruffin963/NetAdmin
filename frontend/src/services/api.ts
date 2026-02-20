@@ -1,4 +1,8 @@
-import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import axios from 'axios';
+
+export type AxiosInstance = any;
+export type AxiosResponse = any;
+export type AxiosError = any;
 import { TokenManager } from './tokenManager';
 
 export interface ApiResponse<T = any> {
@@ -116,7 +120,7 @@ class ApiClient {
         { timeout: 5000 }
       );
 
-      const { accessToken, expiresIn } = response.data.data;
+      const { accessToken, expiresIn } = (response.data as any)?.data || {};
       
       // Update stored access token
       TokenManager.updateAccessToken(accessToken, expiresIn);
@@ -137,27 +141,27 @@ class ApiClient {
     window.location.href = '/login';
   }
 
-  async get<T>(url: string, config?: any): Promise<T> {
+  async get<T = any>(url: string, config?: any): Promise<any> {
     const response = await this.instance.get(url, config);
     return response.data;
   }
 
-  async post<T>(url: string, data?: any, config?: any): Promise<T> {
+  async post<T = any>(url: string, data?: any, config?: any): Promise<any> {
     const response = await this.instance.post(url, data, config);
     return response.data;
   }
 
-  async put<T>(url: string, data?: any, config?: any): Promise<T> {
+  async put<T = any>(url: string, data?: any, config?: any): Promise<any> {
     const response = await this.instance.put(url, data, config);
     return response.data;
   }
 
-  async patch<T>(url: string, data?: any, config?: any): Promise<T> {
+  async patch<T = any>(url: string, data?: any, config?: any): Promise<any> {
     const response = await this.instance.patch(url, data, config);
     return response.data;
   }
 
-  async delete<T>(url: string, config?: any): Promise<T> {
+  async delete<T = any>(url: string, config?: any): Promise<any> {
     const response = await this.instance.delete(url, config);
     return response.data;
   }

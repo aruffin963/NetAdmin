@@ -116,7 +116,7 @@ export const useIpAddresses = (poolId?: number) => {
     queryFn: async (): Promise<IpAddress[]> => {
       if (poolId) {
         const response = await api.get(`/ip/pools/${poolId}/addresses`);
-        return response.data.data || response.data;
+        return (response.data as any)?.data || response.data;
       } else {
         // Si pas de poolId, retourner un tableau vide ou implémenter une route globale
         return [];
@@ -134,7 +134,7 @@ export const useIpAddress = (id: number) => {
     queryKey: queryKeys.ipAddress(id),
     queryFn: async (): Promise<IpAddress> => {
       const response = await api.get(`/ip/addresses/${id}`);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     enabled: !!id,
   });
@@ -147,7 +147,7 @@ export const useCreateIpAddress = () => {
   return useMutation({
     mutationFn: async (data: CreateIpAddressRequest): Promise<IpAddress> => {
       const response = await api.post('/ip/addresses', data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (newAddress: IpAddress) => {
       // Invalider et refetch les listes d'adresses IP
@@ -169,7 +169,7 @@ export const useAllocateIpAddress = () => {
   return useMutation({
     mutationFn: async ({ id, allocated_to, hostname }: { id: number; allocated_to: string; hostname?: string }): Promise<IpAddress> => {
       const response = await api.put(`/ip/addresses/${id}/allocate`, { allocated_to, hostname });
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (allocatedAddress: IpAddress) => {
       // Mettre à jour le cache
@@ -187,7 +187,7 @@ export const useReleaseIpAddress = () => {
   return useMutation({
     mutationFn: async (id: number): Promise<IpAddress> => {
       const response = await api.put(`/ip/addresses/${id}/release`);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (releasedAddress: IpAddress) => {
       // Mettre à jour le cache
@@ -209,7 +209,7 @@ export const useIpPools = () => {
     queryFn: async (): Promise<IpPool[]> => {
       const response = await api.get('/ip/pools');
       // L'API retourne {success: true, data: [...]}
-      return response.data.data || response.data;
+      return (response.data as any)?.data || response.data;
     },
     staleTime: 60000, // 1 minute
     gcTime: 300000, // 5 minutes
@@ -222,7 +222,7 @@ export const useIpPool = (id: number) => {
     queryKey: queryKeys.ipPool(id),
     queryFn: async (): Promise<IpPool> => {
       const response = await api.get(`/ip/pools/${id}`);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     enabled: !!id,
   });
@@ -235,7 +235,7 @@ export const useCreateIpPool = () => {
   return useMutation({
     mutationFn: async (data: CreateIpPoolRequest): Promise<IpPool> => {
       const response = await api.post('/ip/pools', data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (newPool: IpPool) => {
       // Invalider et refetch la liste des pools
@@ -254,7 +254,7 @@ export const useUpdateIpPool = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateIpPoolRequest }): Promise<IpPool> => {
       const response = await api.put(`/ip/pools/${id}`, data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (updatedPool: IpPool) => {
       // Mettre à jour le cache du pool spécifique
@@ -297,7 +297,7 @@ export const useSubnets = () => {
     queryKey: queryKeys.subnets,
     queryFn: async (): Promise<Subnet[]> => {
       const response = await api.get('/ip/subnets');
-      return response.data.data || response.data;
+      return (response.data as any)?.data || response.data;
     },
     staleTime: 60000, // 1 minute
     gcTime: 300000, // 5 minutes
@@ -310,7 +310,7 @@ export const useSubnet = (id: number) => {
     queryKey: queryKeys.subnet(id),
     queryFn: async (): Promise<Subnet> => {
       const response = await api.get(`/ip/subnets/${id}`);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     enabled: !!id,
   });
@@ -323,7 +323,7 @@ export const useCreateSubnet = () => {
   return useMutation({
     mutationFn: async (data: CreateSubnetRequest): Promise<Subnet> => {
       const response = await api.post('/ip/subnets', data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (newSubnet: Subnet) => {
       // Invalider et refetch la liste des sous-réseaux
@@ -342,7 +342,7 @@ export const useUpdateSubnet = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: UpdateSubnetRequest }): Promise<Subnet> => {
       const response = await api.put(`/ip/subnets/${id}`, data);
-      return response.data.data;
+      return (response.data as any)?.data;
     },
     onSuccess: (updatedSubnet: Subnet) => {
       // Mettre à jour le cache du sous-réseau spécifique
@@ -381,7 +381,7 @@ export const useScanNetwork = () => {
   return useMutation({
     mutationFn: async (network: string): Promise<string[]> => {
       const response = await api.post('/ip/scan', { network });
-      return response.data.availableAddresses;
+      return (response.data as any)?.availableAddresses || [];
     },
   });
 };
@@ -391,7 +391,7 @@ export const useValidateCidr = () => {
   return useMutation({
     mutationFn: async (cidr: string): Promise<{ valid: boolean; error?: string; info?: any }> => {
       const response = await api.post('/ip/validate-cidr', { cidr });
-      return response.data;
+      return (response.data as any) || {};
     },
   });
 };
