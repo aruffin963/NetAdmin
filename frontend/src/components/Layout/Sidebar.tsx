@@ -4,13 +4,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
-  Network, 
   Database,
   LogOut,
   User,
   Search,
-  Key,
-  Shield
+  Shield,
+  Wrench
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { colors } from '../../config/colors';
@@ -308,19 +307,14 @@ const Sidebar: React.FC = () => {
       label: 'Monitoring' 
     },
     { 
-      path: '/subnetting', 
-      icon: Network, 
-      label: 'Subnetting' 
+      path: '/tools', 
+      icon: Wrench, 
+      label: 'Outils' 
     },
     { 
       path: '/scan', 
       icon: Search, 
       label: 'Scanner' 
-    },
-    { 
-      path: '/passwords', 
-      icon: Key, 
-      label: 'Mots de passe' 
     },
     { 
       path: '/database', 

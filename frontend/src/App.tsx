@@ -2,9 +2,8 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
-import Subnetting from './pages/Subnetting';
+import Tools from './pages/Tools';
 import ScanPage from './pages/ScanPage';
-import PasswordGeneratorPage from './pages/PasswordGeneratorPage';
 import ZabbixPage from './pages/ZabbixPage';
 import DatabaseManagement from './pages/DatabaseManagement';
 import OrganizationListPage from './pages/OrganizationListPage';
@@ -47,9 +46,8 @@ const App: React.FC = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/monitoring" element={<ZabbixPage />} />
-          <Route path="/subnetting" element={<Subnetting />} />
+          <Route path="/tools" element={<Tools />} />
           <Route path="/scan" element={<ScanPage />} />
-          <Route path="/passwords" element={<PasswordGeneratorPage />} />
           <Route path="/database" element={<DatabaseManagement />} />
           <Route path="/organizations" element={<OrganizationListPage />} />
         </Routes>
