@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 
 interface NetworkScanResult {
   ip: string;
@@ -471,14 +472,14 @@ const ToolTab = styled.button<{ active: boolean }>`
   cursor: pointer;
   transition: all 0.2s ease;
   background: ${props => props.active ? 
-    'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' : 
+    colors.primary.blue : 
     'white'};
   color: ${props => props.active ? 'white' : '#64748b'};
   border: ${props => props.active ? 'none' : '1px solid #e2e8f0'};
 
   &:hover {
     background: ${props => props.active ? 
-      'linear-gradient(135deg, #34d399 0%, #60a5fa 100%)' : 
+      colors.primary.blue : 
       '#f1f5f9'};
   }
 `;
@@ -556,7 +557,7 @@ const TextArea = styled.textarea`
 
 const ActionButton = styled.button`
   padding: 12px 24px;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+  background: ${colors.primary.blue};
   border: none;
   border-radius: 8px;
   color: white;
@@ -593,7 +594,7 @@ const ResultsTitle = styled.h4`
 
 const ExportButton = styled.button`
   padding: 8px 16px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: ${colors.semantic.success};
   border: none;
   border-radius: 6px;
   color: white;
@@ -768,7 +769,7 @@ const ConverterGrid = styled.div`
 
 const ConvertButton = styled.button`
   padding: 10px 16px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: ${colors.primary.blue};
   border: none;
   border-radius: 8px;
   color: white;

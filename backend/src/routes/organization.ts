@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
 import { DatabaseService } from '../config/database';
 import { logger } from '../utils/logger';
+import { isAuthenticatedHybrid, requireRoleHybrid } from '../middleware/auth';
+import { parsePaginationParams, buildPaginatedResponse } from '../utils/pagination';
 import { ActivityLogService, LogActions, ResourceTypes } from '../services/activityLogService';
 
 const router = Router();
@@ -23,7 +25,15 @@ const handleValidationErrors = (req: Request, res: Response, next: any): void =>
 // GET /api/organizations - Lister les organisations avec statistiques
 router.get('/', async (req: Request, res: Response) => {
   try {
-    // Récupérer les organisations avec statistiques (sans vlans qui n'existe pas)
+    const paginationParams = parsePaginationParams(req);
+
+    // Get total count
+    const countResult = await DatabaseService.query(`
+      SELECT COUNT(*) as total FROM organizations
+    `);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Récupérer les organisations avec statistiques
     const organizations = await DatabaseService.query(`
       SELECT 
         o.id, 
@@ -41,14 +51,19 @@ router.get('/', async (req: Request, res: Response) => {
       LEFT JOIN ip_pools p ON p.organization_id = o.id
       LEFT JOIN ip_addresses ip ON ip.pool_id = p.id
       GROUP BY o.id, o.name, o.domain, o.is_active, o.created_at
-      ORDER BY o.created_at DESC
+      ORDER BY ${paginationParams.sortBy === 'name' ? 'o.name' : 'o.created_at'} ${paginationParams.sortOrder.toUpperCase()}
+      LIMIT ${paginationParams.limit} OFFSET ${paginationParams.offset}
     `);
 
-    res.json({
-      success: true,
-      data: organizations.rows,
-      total: organizations.rows.length
-    });
+    const response = buildPaginatedResponse(
+      organizations.rows,
+      paginationParams.page,
+      paginationParams.pageSize,
+      total,
+      'Organisations récupérées avec succès'
+    );
+
+    res.json(response);
   } catch (error: any) {
     logger.error('Erreur lors de la récupération des organisations:', error);
     res.status(500).json({
@@ -60,7 +75,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/organizations - Créer une organisation
-router.post('/', [
+router.post('/', isAuthenticatedHybrid, requireRoleHybrid(['admin']), [
   body('name').trim().isLength({ min: 2, max: 100 }).withMessage('Le nom doit contenir entre 2 et 100 caractères'),
   body('domain').optional().isLength({ max: 100 }).withMessage('Le domaine ne peut pas dépasser 100 caractères')
 ], handleValidationErrors, async (req: Request, res: Response) => {
@@ -171,7 +186,7 @@ router.get('/:id', [
 });
 
 // PUT /api/organizations/:id - Modifier une organisation
-router.put('/:id', [
+router.put('/:id', isAuthenticatedHybrid, requireRoleHybrid(['admin']), [
   param('id').isInt().withMessage('ID invalide'),
   body('name').optional().trim().isLength({ min: 2, max: 100 }).withMessage('Le nom doit contenir entre 2 et 100 caractères'),
   body('domain').optional().isLength({ max: 100 }).withMessage('Le domaine ne peut pas dépasser 100 caractères'),
@@ -277,7 +292,7 @@ router.put('/:id', [
 });
 
 // DELETE /api/organizations/:id - Supprimer une organisation
-router.delete('/:id', [
+router.delete('/:id', isAuthenticatedHybrid, requireRoleHybrid(['admin']), [
   param('id').isInt().withMessage('ID invalide')
 ], handleValidationErrors, async (req: Request, res: Response) => {
   try {

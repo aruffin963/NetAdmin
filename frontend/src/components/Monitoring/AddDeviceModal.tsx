@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 import { DeviceType } from '../../types/monitoring';
 
 interface AddDeviceModalProps {
@@ -445,7 +446,7 @@ const SecondaryButton = styled.button`
 
 const PrimaryButton = styled.button`
   padding: 12px 24px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: ${colors.primary.blue};
   color: white;
   border: none;
   border-radius: 8px;

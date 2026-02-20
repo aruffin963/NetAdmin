@@ -1,777 +1,1051 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../context/NotificationContext';
+import { apiClient } from '../services/api';
 
-const ProfilePageContainer = styled.div`
-  padding: 24px;
+// ============= STYLED COMPONENTS =============
+
+const Container = styled.div`
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1629 100%);
+  padding: 40px 20px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+    top: -200px;
+    right: -200px;
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+    bottom: -100px;
+    left: -100px;
+    border-radius: 50%;
+    animation: float 8s ease-in-out infinite reverse;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(30px); }
+  }
+
+  @media (max-width: 768px) {
+    padding: 20px 15px;
+  }
+`;
+
+const Content = styled.div`
   max-width: 1200px;
   margin: 0 auto;
-  background: white;
-  min-height: 100vh;
+  position: relative;
+  z-index: 1;
 `;
 
 const Header = styled.div`
-  margin-bottom: 32px;
-`;
-
-const Title = styled.h1`
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 32px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 8px 0;
-`;
-
-const ContentGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 32px;
-  
+  margin-bottom: 50px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  padding: 40px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: slideDown 0.6s ease-out;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    text-align: center;
     gap: 24px;
   }
 `;
 
+const Avatar = styled.div`
+  width: 140px;
+  height: 140px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 56px;
+  font-weight: 900;
+  flex-shrink: 0;
+  box-shadow: 0 20px 60px rgba(59, 130, 246, 0.4);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    animation: shine 3s infinite;
+  }
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @media (max-width: 768px) {
+    width: 120px;
+    height: 120px;
+    font-size: 48px;
+  }
+`;
+
+const HeaderInfo = styled.div`
+  flex: 1;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+`;
+
+const Title = styled.h1`
+  margin: 0 0 12px 0;
+  font-size: 36px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff 0%, #a8dadc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -1px;
+
+  @media (max-width: 768px) {
+    font-size: 28px;
+  }
+`;
+
+const Subtitle = styled.p`
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  font-weight: 500;
+`;
+
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 50px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  animation: slideUp 0.6s ease-out 0.1s both;
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+  }
+`;
+
+const TabButton = styled.button<{ active: boolean }>`
+  padding: 12px 28px;
+  border: none;
+  background: ${props => props.active 
+    ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)'
+    : 'transparent'
+  };
+  color: ${props => props.active ? 'white' : 'rgba(255, 255, 255, 0.6)'};
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+
+  ${props => !props.active && `
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.9);
+      transform: translateY(-2px);
+    }
+  `}
+
+  ${props => props.active && `
+    box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.15) 50%, transparent 70%);
+      animation: shine 3s infinite;
+    }
+  `}
+`;
+
 const Card = styled.div`
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 30px;
+  animation: fadeInUp 0.6s ease-out;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  }
 
   &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(59, 130, 246, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 24px;
   }
 `;
 
 const CardTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0 0 20px 0;
+  margin: 0 0 32px 0;
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.5), transparent);
+  }
+`;
+
+const Grid = styled.div<{ columns?: number }>`
+  display: grid;
+  grid-template-columns: repeat(${props => props.columns || 2}, 1fr);
+  gap: 24px;
+
+  @media (max-width: 968px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 20px;
+  animation: fadeInUp 0.6s ease-out;
 `;
 
 const Label = styled.label`
   display: block;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
   font-size: 14px;
-  transition: border-color 0.2s ease;
-  
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-weight: 500;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
   &:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.8);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    transform: translateY(-2px);
   }
-  
+
   &:disabled {
-    background: #f9fafb;
+    background: rgba(255, 255, 255, 0.03);
     cursor: not-allowed;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  &.error {
+    border-color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
   }
 `;
 
-const Select = styled.select`
-  width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  background: white;
-  transition: border-color 0.2s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+const PasswordStrength = styled.div`
+  margin-top: 16px;
+`;
+
+const StrengthBar = styled.div<{ strength: number }>`
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-bottom: 8px;
+
+  &::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: ${props => props.strength}%;
+    background: ${props => {
+      if (props.strength < 40) return 'linear-gradient(90deg, #ff6b6b, #ff8787)';
+      if (props.strength < 70) return 'linear-gradient(90deg, #ffa502, #ffb347)';
+      return 'linear-gradient(90deg, #52c41a, #85ce61)';
+    }};
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    box-shadow: 0 0 10px ${props => {
+      if (props.strength < 40) return 'rgba(255, 107, 107, 0.4)';
+      if (props.strength < 70) return 'rgba(255, 165, 2, 0.4)';
+      return 'rgba(82, 196, 26, 0.4)';
+    }};
   }
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
+const StrengthText = styled.span`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  
-  ${props => props.variant === 'primary' ? `
-    background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-    color: white;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
-    }
-  ` : `
-    background: white;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-    
-    &:hover {
-      background: #f8fafc;
-      color: #1e293b;
-    }
-  `}
-  
-  &:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const RequirementsList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const RequirementItem = styled.li<{ met: boolean }>`
+  font-size: 13px;
+  color: ${props => props.met ? '#52c41a' : 'rgba(255, 255, 255, 0.4)'};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+
+  &:before {
+    content: '${props => props.met ? '✓' : '✗'}';
+    font-weight: 900;
+    font-size: 14px;
   }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
-`;
+  gap: 16px;
+  margin-top: 32px;
 
-const InfoItem = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f1f5f9;
-  
-  &:last-child {
-    border-bottom: none;
+  @media (max-width: 768px) {
+    flex-direction: column;
   }
 `;
 
-const InfoLabel = styled.span`
-  font-weight: 600;
-  color: #374151;
-`;
-
-const InfoValue = styled.span`
-  color: #64748b;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-`;
-
-const Badge = styled.span<{ status: 'online' | 'offline' | 'away' }>`
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
+const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
   text-transform: uppercase;
-  font-weight: 600;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    animation: shine 3s infinite;
+    opacity: 0;
+  }
+
+  ${props => {
+    switch (props.variant) {
+      case 'primary':
+        return `
+          background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+          color: white;
+          box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+          
+          &:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.5);
+            &::before { opacity: 1; }
+          }
+        `;
+      case 'danger':
+        return `
+          background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+          color: white;
+          box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+          
+          &:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.5);
+            &::before { opacity: 1; }
+          }
+        `;
+      default:
+        return `
+          background: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.9);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          backdrop-filter: blur(10px);
+          
+          &:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-4px);
+          }
+        `;
+    }
+  }}
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.05);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.5;
+  }
+`;
+
+const Badge = styled.span<{ status: 'success' | 'danger' | 'info' }>`
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
-  
+
   ${props => {
     switch (props.status) {
-      case 'online':
+      case 'success':
         return `
-          background: #dcfce7;
-          color: #166534;
-          border: 1px solid #bbf7d0;
+          background: rgba(82, 196, 26, 0.2);
+          color: #52c41a;
+          border: 1px solid rgba(82, 196, 26, 0.3);
         `;
-      case 'offline':
+      case 'danger':
         return `
-          background: #fef2f2;
-          color: #dc2626;
-          border: 1px solid #fecaca;
-        `;
-      case 'away':
-        return `
-          background: #fffbeb;
-          color: #d97706;
-          border: 1px solid #fed7aa;
+          background: rgba(255, 107, 107, 0.2);
+          color: #ff6b6b;
+          border: 1px solid rgba(255, 107, 107, 0.3);
         `;
       default:
         return `
-          background: #f1f5f9;
-          color: #64748b;
-          border: 1px solid #e2e8f0;
+          background: rgba(59, 130, 246, 0.2);
+          color: rgba(255, 255, 255, 0.9);
+          border: 1px solid rgba(59, 130, 246, 0.3);
         `;
     }
   }}
 `;
 
-const Avatar = styled.div`
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 32px;
-  font-weight: 700;
-  margin: 0 auto 20px auto;
-  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+const TableContainer = styled.div`
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
-const Notification = styled.div<{ show: boolean; type: 'success' | 'info' | 'warning' }>`
-  position: fixed;
-  top: 20px;
-  right: 20px;
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    text-align: left;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  tr:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+`;
+
+const Notification = styled.div<{ type: 'success' | 'error' | 'info' }>`
   padding: 16px 20px;
-  border-radius: 8px;
-  color: white;
-  font-weight: 600;
-  z-index: 1000;
-  transform: ${props => props.show ? 'translateY(0)' : 'translateY(-100px)'};
-  opacity: ${props => props.show ? 1 : 0};
-  transition: all 0.3s ease;
-  
-  ${props => {
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border-left: 4px solid;
+  backdrop-filter: blur(10px);
+  background: ${props => {
     switch (props.type) {
       case 'success':
-        return 'background: #10b981; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);';
-      case 'info': 
-        return 'background: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);';
-      case 'warning':
-        return 'background: #f59e0b; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);';
+        return 'rgba(82, 196, 26, 0.15)';
+      case 'error':
+        return 'rgba(255, 107, 107, 0.15)';
       default:
-        return 'background: #64748b;';
+        return 'rgba(59, 130, 246, 0.15)';
     }
-  }}
+  }};
+  border-color: ${props => {
+    switch (props.type) {
+      case 'success':
+        return '#52c41a';
+      case 'error':
+        return '#ff6b6b';
+      default:
+        return '#3b82f6';
+    }
+  }};
+  color: ${props => {
+    switch (props.type) {
+      case 'success':
+        return '#95de64';
+      case 'error':
+        return '#ff8787';
+      default:
+        return '#91caff';
+    }
+  }};
+  font-weight: 600;
+  font-size: 14px;
+  animation: slideDown 0.3s ease-out;
 `;
 
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.5);
+
+  div:first-child {
+    font-size: 56px;
+    margin-bottom: 16px;
+  }
+`;
+
+// ============= MAIN COMPONENT =============
+
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth(); // Récupérer les données LDAP
-  const [isEditing, setIsEditing] = useState(false);
-  const [notification, setNotification] = useState({
-    show: false,
-    message: '',
-    type: 'success' as 'success' | 'info' | 'warning'
-  });
-  
-  // Fonction pour obtenir les informations réelles du navigateur
-  const getRealBrowserInfo = () => {
-    const ua = navigator.userAgent;
-    let browserName = 'Unknown';
-    let version = 'Unknown';
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences'>('profile');
+  const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({ show: false, message: '', type: 'success' });
 
-    if (ua.includes('Chrome') && !ua.includes('Edg')) {
-      browserName = 'Chrome';
-      const match = ua.match(/Chrome\/([0-9.]+)/);
-      version = match ? match[1] : 'Unknown';
-    } else if (ua.includes('Firefox')) {
-      browserName = 'Firefox';
-      const match = ua.match(/Firefox\/([0-9.]+)/);
-      version = match ? match[1] : 'Unknown';
-    } else if (ua.includes('Edg')) {
-      browserName = 'Edge';
-      const match = ua.match(/Edg\/([0-9.]+)/);
-      version = match ? match[1] : 'Unknown';
-    } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
-      browserName = 'Safari';
-      const match = ua.match(/Version\/([0-9.]+)/);
-      version = match ? match[1] : 'Unknown';
-    }
-
-    return `${browserName} ${version}`;
-  };
-
-  // Fonction pour obtenir les informations du système
-  const getSystemInfo = () => {
-    const ua = navigator.userAgent;
-    let os = 'Unknown';
-    
-    if (ua.includes('Win')) os = 'Windows';
-    else if (ua.includes('Mac')) os = 'macOS';
-    else if (ua.includes('Linux')) os = 'Linux';
-    else if (ua.includes('Android')) os = 'Android';
-    else if (ua.includes('iOS')) os = 'iOS';
-    
-    return {
-      os,
-      platform: navigator.platform,
-      language: navigator.language,
-      cookieEnabled: navigator.cookieEnabled,
-      onLine: navigator.onLine,
-      screenResolution: `${screen.width}x${screen.height}`,
-      colorDepth: screen.colorDepth,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    };
-  };
-
-  // Fonction pour obtenir l'adresse IP (simulation car nécessite API)
-  const getRealIPAddress = async () => {
-    try {
-      // Utilisation de l'API ipify pour obtenir la vraie adresse IP publique
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch (error) {
-      console.warn('Impossible de récupérer l\'adresse IP publique:', error);
-      // Fallback vers une IP locale statique si l'API échoue
-      return '192.168.1.100';
-    }
-  };
-
-  // Fonction pour générer un session ID réaliste
-  const generateSessionId = () => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return `sess_${timestamp}_${random}`;
-  };
-
-  // Fonction pour détecter le statut en ligne
-  const getConnectionStatus = (): 'online' | 'offline' | 'away' => {
-    if (!navigator.onLine) return 'offline';
-    
-    // Logique simple pour détecter si l'utilisateur est "absent"
-    // En production, cela pourrait être basé sur l'activité récente
-    const lastActivity = Date.now() - (document.hasFocus() ? 0 : 5 * 60 * 1000);
-    if (lastActivity > 10 * 60 * 1000) return 'away'; // 10 minutes d'inactivité
-    
-    return 'online';
-  };
-
-  const [sessionInfo, setSessionInfo] = useState({
-    status: getConnectionStatus(),
-    lastConnection: new Date(),
-    ipAddress: 'Chargement...',
-    browser: getRealBrowserInfo(),
-    sessionId: generateSessionId(),
-    systemInfo: getSystemInfo(),
-    sessionDuration: 0 // en minutes
-  });
-
-  // Effet pour charger les informations réelles au montage
-  useEffect(() => {
-    const sessionStartTime = Date.now();
-    
-    const loadRealSessionInfo = async () => {
-      const realIP = await getRealIPAddress();
-      setSessionInfo(prev => ({
-        ...prev,
-        ipAddress: realIP,
-        status: getConnectionStatus(),
-        systemInfo: getSystemInfo()
-      }));
-    };
-
-    loadRealSessionInfo();
-
-    // Écouter les changements de connexion
-    const handleOnline = () => setSessionInfo(prev => ({ ...prev, status: 'online' }));
-    const handleOffline = () => setSessionInfo(prev => ({ ...prev, status: 'offline' }));
-    const handleVisibilityChange = () => {
-      setSessionInfo(prev => ({ ...prev, status: getConnectionStatus() }));
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Mise à jour périodique du statut et de la durée de session
-    const statusInterval = setInterval(() => {
-      const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 60000); // en minutes
-      setSessionInfo(prev => ({ 
-        ...prev, 
-        status: getConnectionStatus(),
-        sessionDuration
-      }));
-    }, 30000); // Vérifie toutes les 30 secondes
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(statusInterval);
-    };
-  }, []);
-
+  // Profile state
   const [profile, setProfile] = useState({
-    username: user?.username || 'N/A',
-    email: user?.email || 'N/A',
+    username: user?.username || '',
+    email: user?.email || '',
     role: 'Administrateur Réseau',
     department: 'IT Infrastructure',
-    location: 'Paris, France',
-    timezone: 'Europe/Paris',
-    language: 'fr-FR'
   });
 
-  // Mettre à jour le profil quand les données LDAP changent
-  useEffect(() => {
-    if (user) {
-      setProfile(prev => ({
-        ...prev,
-        username: user.username || prev.username,
-        email: user.email || prev.email
-      }));
-    }
-  }, [user]);
+  // Password change state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
 
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+
+  // Login history state
+  const [loginHistory, setLoginHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Preferences state
   const [preferences, setPreferences] = useState({
     notifications: 'all',
-    autoRefresh: '30',
-    dateFormat: 'DD/MM/YYYY'
+    autoLogout: '30',
   });
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Ici on sauvegarderait les données
-    console.log('Profil sauvegardé:', profile);
-    showNotification('Profil sauvegardé avec succès !', 'success');
+  // Load login history when component mounts or security tab is selected
+  useEffect(() => {
+    if (activeTab === 'security') {
+      loadLoginHistory();
+    }
+  }, [activeTab]);
+
+  // Load login history
+  const loadLoginHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await apiClient.get('/auth/login-history?limit=20');
+      if (response.success) {
+        setLoginHistory(response.data || []);
+      }
+    } catch (error: any) {
+      showNotification('Erreur lors du chargement de l\'historique', 'error');
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
-  const handleCancel = () => {
-    setIsEditing(false);
-    // Ici on restaurerait les données originales
-    showNotification('Modifications annulées', 'info');
-  };
-
-  const handlePreferencesSave = () => {
-    // Ici on sauvegarderait les préférences
-    console.log('Préférences sauvegardées:', preferences);
-    showNotification('Préférences sauvegardées avec succès !', 'success');
-  };
-
-  const handlePreferencesReset = () => {
-    setPreferences({
-      notifications: 'all',
-      autoRefresh: '30',
-      dateFormat: 'DD/MM/YYYY'
+  // Update password requirements
+  const updatePasswordRequirements = (password: string) => {
+    setPasswordRequirements({
+      minLength: password.length >= 8,
+      hasUppercase: /[A-Z]/.test(password),
+      hasLowercase: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[!@#$%^&*]/.test(password),
     });
-    showNotification('Préférences réinitialisées', 'info');
   };
 
-  const showNotification = (message: string, type: 'success' | 'info' | 'warning') => {
+  // Calculate password strength
+  const getPasswordStrength = () => {
+    const met = Object.values(passwordRequirements).filter(Boolean).length;
+    return (met / 5) * 100;
+  };
+
+  // Get password strength text
+  const getPasswordStrengthText = () => {
+    const strength = getPasswordStrength();
+    if (strength < 40) return 'Faible';
+    if (strength < 80) return 'Moyen';
+    return 'Forte';
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotification('Les mots de passe ne correspondent pas', 'error');
+      return;
+    }
+
+    if (!Object.values(passwordRequirements).every(Boolean)) {
+      showNotification('Le mot de passe ne répond pas aux exigences', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiClient.post('/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      if (response.success) {
+        showNotification('Mot de passe changé avec succès !', 'success');
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+      } else {
+        showNotification(response.message || 'Erreur lors du changement de mot de passe', 'error');
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Erreur serveur';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ show: true, message, type });
     setTimeout(() => {
-      setNotification(prev => ({ ...prev, show: false }));
-    }, 3000);
+      setNotification({ show: false, message: '', type: 'success' });
+    }, 4000);
   };
 
-  const handleRefreshSession = async () => {
-    // Actualiser avec de vraies informations
-    const realIP = await getRealIPAddress();
-    setSessionInfo(prev => ({
-      ...prev,
-      lastConnection: new Date(),
-      sessionId: generateSessionId(),
-      ipAddress: realIP,
-      browser: getRealBrowserInfo(),
-      status: getConnectionStatus(),
-      systemInfo: getSystemInfo()
-    }));
-    showNotification('Session actualisée avec succès !', 'success');
-  };
-
-  const handleLogout = () => {
-    if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-      // Ici on redirigerait vers la page de connexion
-      showNotification('Déconnexion en cours...', 'info');
-      // window.location.href = '/login';
-    }
-  };
-
-  const handlePreferenceChange = (key: string, value: string) => {
-    setPreferences(prev => ({ ...prev, [key]: value }));
-    
-    // Appliquer immédiatement certaines préférences
-    switch (key) {
-      case 'dateFormat':
-        showNotification(`Format de date changé vers ${value}`, 'info');
-        break;
-      case 'notifications':
-        showNotification(`Préférences de notification mises à jour`, 'info');
-        break;
-      case 'autoRefresh':
-        const refreshLabels = { '5': '5 secondes', '10': '10 secondes', '30': '30 secondes', '60': '1 minute', '300': '5 minutes', '0': 'désactivé' };
-        showNotification(`Rafraîchissement automatique: ${refreshLabels[value as keyof typeof refreshLabels]}`, 'info');
-        break;
-      default:
-        break;
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    switch (preferences.dateFormat) {
-      case 'MM/DD/YYYY':
-        return date.toLocaleDateString('en-US');
-      case 'YYYY-MM-DD':
-        return date.toISOString().split('T')[0];
-      case 'DD.MM.YYYY':
-        return date.toLocaleDateString('de-DE');
-      default:
-        return date.toLocaleDateString('fr-FR');
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const getInitials = () => {
-    return profile.username.substring(0, 2).toUpperCase();
+    return (user?.username || 'U').substring(0, 2).toUpperCase();
   };
 
   return (
-    <ProfilePageContainer>
-      <Notification 
-        show={notification.show} 
-        type={notification.type}
-      >
-        {notification.message}
-      </Notification>
-      
-      <Header>
-        <Title>
-          👤 Profil Utilisateur
-        </Title>
-      </Header>
-
-      <ContentGrid>
-        {/* Informations Personnelles */}
-        <Card>
-          <CardTitle>👤 Informations Personnelles</CardTitle>
-          
+    <Container>
+      <Content>
+        {/* Header */}
+        <Header>
           <Avatar>{getInitials()}</Avatar>
-          
-          <FormGroup>
-            <Label>Nom d'utilisateur</Label>
-            <Input
-              type="text"
-              value={profile.username}
-              onChange={(e) => setProfile({...profile, username: e.target.value})}
-              disabled={!isEditing}
-            />
-          </FormGroup>
+          <HeaderInfo>
+            <Title>Profil Utilisateur</Title>
+            <Subtitle>{user?.email}</Subtitle>
+          </HeaderInfo>
+        </Header>
 
-          <FormGroup>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={profile.email}
-              onChange={(e) => setProfile({...profile, email: e.target.value})}
-              disabled={!isEditing}
-            />
-          </FormGroup>
+        {/* Notification */}
+        {notification.show && (
+          <Notification type={notification.type}>
+            {notification.message}
+          </Notification>
+        )}
 
-          <ButtonGroup>
-            {!isEditing ? (
-              <Button variant="primary" onClick={() => setIsEditing(true)}>
-                ✏️ Modifier
+        {/* Tabs */}
+        <TabsContainer>
+          <TabButton
+            active={activeTab === 'profile'}
+            onClick={() => setActiveTab('profile')}
+          >
+            👤 Profil
+          </TabButton>
+          <TabButton
+            active={activeTab === 'security'}
+            onClick={() => setActiveTab('security')}
+          >
+            🔐 Sécurité
+          </TabButton>
+          <TabButton
+            active={activeTab === 'preferences'}
+            onClick={() => setActiveTab('preferences')}
+          >
+            ⚙️ Paramètres
+          </TabButton>
+        </TabsContainer>
+
+        {/* Profile Tab */}
+        {activeTab === 'profile' && (
+          <Card>
+            <CardTitle>📋 Informations Personnelles</CardTitle>
+            <Grid columns={2}>
+              <FormGroup>
+                <Label>Nom d'utilisateur</Label>
+                <Input
+                  type="text"
+                  value={profile.username}
+                  disabled
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={profile.email}
+                  disabled
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>Rôle</Label>
+                <Input
+                  type="text"
+                  value={profile.role}
+                  disabled
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>Département</Label>
+                <Input
+                  type="text"
+                  value={profile.department}
+                  disabled
+                />
+              </FormGroup>
+            </Grid>
+          </Card>
+        )}
+
+        {/* Security Tab */}
+        {activeTab === 'security' && (
+          <>
+            {/* Change Password */}
+            <Card>
+              <CardTitle>🔐 Changer le Mot de Passe</CardTitle>
+              <form onSubmit={handlePasswordChange}>
+                <FormGroup>
+                  <Label>Mot de passe actuel</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({
+                      ...passwordForm,
+                      currentPassword: e.target.value
+                    })}
+                    placeholder="Entrez votre mot de passe actuel"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Nouveau mot de passe</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPasswordForm({ ...passwordForm, newPassword: value });
+                      updatePasswordRequirements(value);
+                    }}
+                    placeholder="Entrez un nouveau mot de passe"
+                    required
+                  />
+                  <PasswordStrength>
+                    <StrengthBar strength={getPasswordStrength()} />
+                    <StrengthText>
+                      Force: <strong>{getPasswordStrengthText()}</strong>
+                    </StrengthText>
+                    <RequirementsList>
+                      <RequirementItem met={passwordRequirements.minLength}>
+                        Au moins 8 caractères
+                      </RequirementItem>
+                      <RequirementItem met={passwordRequirements.hasUppercase}>
+                        Une lettre majuscule
+                      </RequirementItem>
+                      <RequirementItem met={passwordRequirements.hasLowercase}>
+                        Une lettre minuscule
+                      </RequirementItem>
+                      <RequirementItem met={passwordRequirements.hasNumber}>
+                        Un chiffre
+                      </RequirementItem>
+                      <RequirementItem met={passwordRequirements.hasSpecial}>
+                        Un caractère spécial (!@#$%^&*)
+                      </RequirementItem>
+                    </RequirementsList>
+                  </PasswordStrength>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Confirmer le mot de passe</Label>
+                  <Input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({
+                      ...passwordForm,
+                      confirmPassword: e.target.value
+                    })}
+                    placeholder="Confirmez votre nouveau mot de passe"
+                    required
+                    className={
+                      passwordForm.confirmPassword && 
+                      passwordForm.newPassword !== passwordForm.confirmPassword 
+                        ? 'error' 
+                        : ''
+                    }
+                  />
+                </FormGroup>
+
+                <ButtonGroup>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    disabled={loading || !Object.values(passwordRequirements).every(Boolean)}
+                  >
+                    {loading ? '⏳ CHANGEMENT EN COURS...' : '💾 CHANGER LE MOT DE PASSE'}
+                  </Button>
+                </ButtonGroup>
+              </form>
+            </Card>
+
+            {/* Login History */}
+            <Card>
+              <CardTitle>📊 Historique de Connexion</CardTitle>
+              {historyLoading ? (
+                <EmptyState>
+                  <div>⏳</div>
+                  <div>Chargement...</div>
+                </EmptyState>
+              ) : loginHistory.length === 0 ? (
+                <EmptyState>
+                  <div>📭</div>
+                  <div>Aucune connexion enregistrée</div>
+                </EmptyState>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <th>Date/Heure</th>
+                        <th>Adresse IP</th>
+                        <th>Navigateur</th>
+                        <th>Méthode</th>
+                        <th>Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginHistory.map((login, index) => (
+                        <tr key={index}>
+                          <td>{formatDate(login.login_at)}</td>
+                          <td>{login.ip_address || 'N/A'}</td>
+                          <td>{login.user_agent?.substring(0, 40) || 'N/A'}...</td>
+                          <td>{login.method === 'session' ? '🔐 Session' : '🗝️ JWT'}</td>
+                          <td>
+                            <Badge status={login.success ? 'success' : 'danger'}>
+                              {login.success ? '✓ Succès' : '✗ Échec'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Card>
+          </>
+        )}
+
+        {/* Preferences Tab */}
+        {activeTab === 'preferences' && (
+          <Card>
+            <CardTitle>⚙️ Paramètres Avancés</CardTitle>
+            <Grid columns={1}>
+              <FormGroup>
+                <Label>🔔 Notifications</Label>
+                <Input
+                  as="select"
+                  value={preferences.notifications}
+                  onChange={(e) => setPreferences({
+                    ...preferences,
+                    notifications: e.target.value
+                  })}
+                  style={{ padding: '14px 18px', cursor: 'pointer' }}
+                >
+                  <option value="all">Toutes les notifications</option>
+                  <option value="important">Importantes uniquement</option>
+                  <option value="none">Aucune notification</option>
+                </Input>
+              </FormGroup>
+
+              <FormGroup>
+                <Label>⏱️ Déconnexion automatique</Label>
+                <Input
+                  as="select"
+                  value={preferences.autoLogout}
+                  onChange={(e) => setPreferences({
+                    ...preferences,
+                    autoLogout: e.target.value
+                  })}
+                  style={{ padding: '14px 18px', cursor: 'pointer' }}
+                >
+                  <option value="15">15 minutes d'inactivité</option>
+                  <option value="30">30 minutes d'inactivité</option>
+                  <option value="60">1 heure d'inactivité</option>
+                  <option value="0">Jamais</option>
+                </Input>
+              </FormGroup>
+            </Grid>
+
+            <ButtonGroup>
+              <Button variant="primary">
+                💾 SAUVEGARDER PARAMÈTRES
               </Button>
-            ) : (
-              <>
-                <Button variant="primary" onClick={handleSave}>
-                  💾 Sauvegarder
-                </Button>
-                <Button variant="secondary" onClick={handleCancel}>
-                  ❌ Annuler
-                </Button>
-              </>
-            )}
-          </ButtonGroup>
-        </Card>
-
-        {/* Informations Professionnelles */}
-        <Card>
-          <CardTitle>🏢 Informations Professionnelles</CardTitle>
-
-          <FormGroup>
-            <Label>Rôle</Label>
-            <Input
-              type="text"
-              value={profile.role}
-              onChange={(e) => setProfile({...profile, role: e.target.value})}
-              disabled={!isEditing}
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Département</Label>
-            <Input
-              type="text"
-              value={profile.department}
-              onChange={(e) => setProfile({...profile, department: e.target.value})}
-              disabled={!isEditing}
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Localisation</Label>
-            <Input
-              type="text"
-              value={profile.location}
-              onChange={(e) => setProfile({...profile, location: e.target.value})}
-              disabled={!isEditing}
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Fuseau Horaire</Label>
-            <Select
-              value={profile.timezone}
-              onChange={(e) => setProfile({...profile, timezone: e.target.value})}
-              disabled={!isEditing}
-            >
-              <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
-              <option value="Europe/London">Europe/London (UTC+0)</option>
-              <option value="America/New_York">America/New_York (UTC-5)</option>
-              <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-            </Select>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Langue</Label>
-            <Select
-              value={profile.language}
-              onChange={(e) => setProfile({...profile, language: e.target.value})}
-              disabled={!isEditing}
-            >
-              <option value="fr-FR">Français</option>
-              <option value="en-US">English</option>
-              <option value="es-ES">Español</option>
-              <option value="de-DE">Deutsch</option>
-            </Select>
-          </FormGroup>
-        </Card>
-
-        {/* Statut de Session */}
-        <Card>
-          <CardTitle>🔒 Statut de Session</CardTitle>
-
-          <InfoItem>
-            <InfoLabel>Statut</InfoLabel>
-            <Badge status={sessionInfo.status}>
-              {sessionInfo.status === 'online' ? 'En ligne' : 
-               sessionInfo.status === 'offline' ? 'Hors ligne' : 'Absent'}
-            </Badge>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Dernière connexion</InfoLabel>
-            <InfoValue>{formatDate(sessionInfo.lastConnection)} {sessionInfo.lastConnection.toLocaleTimeString('fr-FR')}</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Durée de session</InfoLabel>
-            <InfoValue>
-              {sessionInfo.sessionDuration === 0 ? 'Moins d\'1 minute' : 
-               sessionInfo.sessionDuration === 1 ? '1 minute' : 
-               `${sessionInfo.sessionDuration} minutes`}
-            </InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Adresse IP</InfoLabel>
-            <InfoValue>{sessionInfo.ipAddress}</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Navigateur</InfoLabel>
-            <InfoValue>{sessionInfo.browser}</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Système d'exploitation</InfoLabel>
-            <InfoValue>{sessionInfo.systemInfo.os} ({sessionInfo.systemInfo.platform})</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Résolution écran</InfoLabel>
-            <InfoValue>{sessionInfo.systemInfo.screenResolution} • {sessionInfo.systemInfo.colorDepth} bits</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Fuseau horaire</InfoLabel>
-            <InfoValue>{sessionInfo.systemInfo.timezone}</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Langue navigateur</InfoLabel>
-            <InfoValue>{sessionInfo.systemInfo.language}</InfoValue>
-          </InfoItem>
-
-          <InfoItem>
-            <InfoLabel>Session ID</InfoLabel>
-            <InfoValue>{sessionInfo.sessionId}</InfoValue>
-          </InfoItem>
-
-          <ButtonGroup>
-            <Button variant="secondary" onClick={handleRefreshSession}>
-              🔄 Actualiser Session
-            </Button>
-            <Button variant="secondary" onClick={handleLogout}>
-              🚪 Déconnexion
-            </Button>
-          </ButtonGroup>
-        </Card>
-
-        {/* Préférences */}
-        <Card>
-          <CardTitle>⚙️ Préférences</CardTitle>
-
-          <FormGroup>
-            <Label>🔔 Notifications</Label>
-            <Select 
-              value={preferences.notifications} 
-              onChange={(e) => handlePreferenceChange('notifications', e.target.value)}
-            >
-              <option value="all">🔔 Toutes les notifications</option>
-              <option value="important">⚠️ Importantes uniquement</option>
-              <option value="none">🔕 Aucune notification</option>
-            </Select>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>🔄 Rafraîchissement automatique</Label>
-            <Select 
-              value={preferences.autoRefresh} 
-              onChange={(e) => handlePreferenceChange('autoRefresh', e.target.value)}
-            >
-              <option value="5">⚡ 5 secondes</option>
-              <option value="10">🚀 10 secondes</option>
-              <option value="30">⏱️ 30 secondes</option>
-              <option value="60">🕐 1 minute</option>
-              <option value="300">⏳ 5 minutes</option>
-              <option value="0">🛑 Désactivé</option>
-            </Select>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>📅 Format de date</Label>
-            <Select 
-              value={preferences.dateFormat} 
-              onChange={(e) => handlePreferenceChange('dateFormat', e.target.value)}
-            >
-              <option value="DD/MM/YYYY">🇫🇷 DD/MM/YYYY (Français)</option>
-              <option value="MM/DD/YYYY">🇺🇸 MM/DD/YYYY (Américain)</option>
-              <option value="YYYY-MM-DD">🌍 YYYY-MM-DD (ISO)</option>
-              <option value="DD.MM.YYYY">🇩🇪 DD.MM.YYYY (Allemand)</option>
-            </Select>
-          </FormGroup>
-
-          <ButtonGroup>
-            <Button variant="primary" onClick={handlePreferencesSave}>
-              💾 Sauvegarder Préférences
-            </Button>
-            <Button variant="secondary" onClick={handlePreferencesReset}>
-              🔄 Réinitialiser
-            </Button>
-          </ButtonGroup>
-        </Card>
-      </ContentGrid>
-    </ProfilePageContainer>
+            </ButtonGroup>
+          </Card>
+        )}
+      </Content>
+    </Container>
   );
 };
 

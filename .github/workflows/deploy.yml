@@ -48,8 +48,8 @@ jobs:
     - name: Build Frontend
       working-directory: ./frontend
       run: npm run build
-      env:
-        VITE_API_URL: ${{ secrets.API_URL }}
+      # env: 
+        # VITE_API_URL: ${{ secrets.API_URL }}
 
     # Create deployment package
     - name: Create deployment package

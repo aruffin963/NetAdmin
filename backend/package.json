@@ -15,7 +15,12 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "clean": "rimraf dist",
     "db:create": "ts-node scripts/create-database.ts",
-    "db:org": "ts-node scripts/create-organization.ts"
+    "db:org": "ts-node scripts/create-organization.ts",
+    "migrate": "ts-node src/runMigrations.ts",
+    "migrate:status": "ts-node -e \"import MigrationManager from './src/services/migrationManager'; MigrationManager.getMigrationHistory().then(h => console.table(h));\"",
+    "backup": "ts-node scripts/backup-database.ts",
+    "backup:list": "node -e \"const fs = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'backups'); if (fs.existsSync(dir)) { console.log('📋 Fichiers de backup:'); fs.readdirSync(dir).filter(f => f.startsWith('backup_')).sort().reverse().forEach(f => { const s = fs.statSync(path.join(dir, f)).size / (1024*1024); console.log('  • ' + f + ' (' + s.toFixed(2) + ' MB)'); }); } else { console.log('Aucun backup'); }\"",
+    "backup:restore": "ts-node scripts/backup-database.ts restore"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -28,9 +33,12 @@
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^8.0.1",
     "pg": "^8.11.3",
     "ping": "^1.0.0",
+    "qrcode": "^1.5.4",
     "redis": "^4.6.10",
+    "speakeasy": "^2.0.0",
     "systeminformation": "^5.27.11",
     "winston": "^3.11.0"
   },
@@ -44,6 +52,8 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.19.24",
     "@types/pg": "^8.10.9",
+    "@types/qrcode": "^1.5.6",
+    "@types/speakeasy": "^2.0.10",
     "@typescript-eslint/eslint-plugin": "^6.13.2",
     "@typescript-eslint/parser": "^6.13.2",
     "eslint": "^8.55.0",

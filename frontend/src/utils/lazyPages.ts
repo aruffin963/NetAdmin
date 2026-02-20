@@ -33,14 +33,6 @@ export const LazySubnettingPage = withLazyLoading(
   }
 );
 
-export const LazyAlertsPage = withLazyLoading(
-  () => import('../pages/Alerts'),
-  {
-    title: "Chargement des alertes...",
-    description: "Récupération des notifications et événements système"
-  }
-);
-
 export const LazyLogsPage = withLazyLoading(
   () => import('../pages/Logs'),
   {

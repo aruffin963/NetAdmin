@@ -1,88 +1,188 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { usePagination } from '../hooks/usePagination';
-import Pagination from '../components/Common/Pagination';
+import { colors } from '../config/colors';
 import { LoadingSpinner, ErrorMessage } from '../components/Common';
 import { LogEntry, LogLevel } from '../types/monitoring';
+import { LogsService, LogFilter } from '../services/logsService';
 
 type LogLevelType = LogLevel;
 
+interface LogsPageState {
+  logs: LogEntry[];
+  total: number;
+  isLoading: boolean;
+  error: string | null;
+}
+
 const Logs: React.FC = () => {
+  // Estados de filtros
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedSource, setSelectedSource] = useState<string>('all');
+  const [selectedUsername, setSelectedUsername] = useState<string>('');
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('24h');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  
-  // Debouncer la recherche pour éviter trop d'appels
-  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  const [sortBy, setSortBy] = useState<'timestamp' | 'level' | 'category'>('timestamp');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Pour l'instant, utilisons des données vides en attendant la correction de l'API
-  const logsQuery = {
-    data: [] as LogEntry[],
-    isLoading: false,
+  // Estados de datos
+  const [logsState, setLogsState] = useState<LogsPageState>({
+    logs: [],
+    total: 0,
+    isLoading: true,
     error: null
-  };
+  });
 
-  const statsQuery = {
-    data: {
-      total: 0,
-      error: 0,
-      warning: 0,
-      info: 0,
-      debug: 0
-    }
-  };
+  const [stats, setStats] = useState({
+    total: 0,
+    byLevel: { error: 0, warning: 0, info: 0, debug: 0 },
+    byCategory: {}
+  });
 
-  // Les logs sont déjà filtrés par l'API
-  const filteredLogs = useMemo(() => {
-    if (!logsQuery.data) return [];
-    return Array.isArray(logsQuery.data) ? logsQuery.data : [];
-  }, [logsQuery.data]);
+  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(25);
 
-  // Obtenir les statistiques
-  const stats = useMemo(() => {
-    if (statsQuery.data) {
-      return statsQuery.data;
-    }
-    
-    // Fallback avec les logs filtrés si les stats ne sont pas disponibles
-    return {
-      total: filteredLogs.length,
-      error: filteredLogs.filter((log: any) => log.level === 'error').length,
-      warning: filteredLogs.filter((log: any) => log.level === 'warning').length,
-      info: filteredLogs.filter((log: any) => log.level === 'info').length,
-      debug: filteredLogs.filter((log: any) => log.level === 'debug').length
-    };
-  }, [statsQuery.data, filteredLogs]);
+  // Estados para filtros dinámicos
+  const [categories, setCategories] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
 
-  // Pagination des logs
-  const [paginatedLogs, paginationControls] = usePagination(filteredLogs, 25);
+  // Debouncer para búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCurrentPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
-
-  const getRelativeTime = (timestamp: string) => {
+  // Función para calcular rango de fechas según timeRange
+  const getDateRange = useCallback((range: string): { start?: Date; end?: Date } => {
     const now = new Date();
-    const logTime = new Date(timestamp);
-    const diffMs = now.getTime() - logTime.getTime();
-    
-    if (diffMs < 60000) return 'Il y a quelques secondes';
-    if (diffMs < 3600000) return `Il y a ${Math.floor(diffMs / 60000)} min`;
-    if (diffMs < 86400000) return `Il y a ${Math.floor(diffMs / 3600000)}h`;
-    return `Il y a ${Math.floor(diffMs / 86400000)} jour(s)`;
+    switch (range) {
+      case '1h':
+        return { start: new Date(now.getTime() - 3600000) };
+      case '6h':
+        return { start: new Date(now.getTime() - 21600000) };
+      case '24h':
+        return { start: new Date(now.getTime() - 86400000) };
+      case '7d':
+        return { start: new Date(now.getTime() - 604800000) };
+      default:
+        return {};
+    }
+  }, []);
+
+  // Cargar logs cuando cambian los filtros
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLogsState(prev => ({ ...prev, isLoading: true, error: null }));
+      try {
+        const dateRange = getDateRange(selectedTimeRange);
+        const filters: LogFilter = {
+          search: searchQuery,
+          level: selectedLevel === 'all' ? undefined : selectedLevel,
+          category: selectedCategory === 'all' ? undefined : selectedCategory,
+          username: selectedUsername || undefined,
+          startDate: dateRange.start,
+          endDate: dateRange.end,
+          limit: pageSize,
+          offset: currentPage * pageSize,
+          sortBy,
+          sortOrder
+        };
+
+        const response = await LogsService.getLogs(filters);
+        setLogsState({
+          logs: response.data || [],
+          total: response.total || 0,
+          isLoading: false,
+          error: null
+        });
+
+        // Cargar estadísticas
+        const statsData = await LogsService.getStats({
+          startDate: dateRange.start,
+          endDate: dateRange.end
+        });
+        setStats(statsData);
+      } catch (err: any) {
+        setLogsState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: err.message || 'Error al cargar los logs'
+        }));
+      }
+    };
+
+    fetchLogs();
+  }, [selectedLevel, selectedCategory, selectedSource, selectedUsername, selectedTimeRange, searchQuery, sortBy, sortOrder, currentPage, pageSize, getDateRange]);
+
+  // Cargar categorías y fuentes disponibles
+  useEffect(() => {
+    const loadDynamicFilters = async () => {
+      try {
+        const [cats, srcs] = await Promise.all([
+          LogsService.getCategories(),
+          LogsService.getSources()
+        ]);
+        setCategories(cats);
+        setSources(srcs);
+      } catch (err) {
+        // Silently fail
+      }
+    };
+    loadDynamicFilters();
+  }, []);
+
+  const formatTimestamp = (timestamp: any) => {
+    try {
+      if (!timestamp) return 'N/A';
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'Fecha inválida';
+      return date.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (error) {
+      return 'N/A';
+    }
   };
 
-  const getLevelIcon = (level: LogLevelType) => {
-    switch (level) {
+  const getRelativeTime = (timestamp: any) => {
+    try {
+      if (!timestamp) return 'Desconocido';
+      const now = new Date();
+      const logTime = new Date(timestamp);
+      if (isNaN(logTime.getTime())) return 'Fecha inválida';
+      const diffMs = now.getTime() - logTime.getTime();
+
+      if (diffMs < 60000) return 'Il y a quelques secondes';
+      if (diffMs < 3600000) return `Il y a ${Math.floor(diffMs / 60000)} min`;
+      if (diffMs < 86400000) return `Il y a ${Math.floor(diffMs / 3600000)}h`;
+      return `Il y a ${Math.floor(diffMs / 86400000)} jour(s)`;
+    } catch (error) {
+      return 'Desconocido';
+    }
+  };
+
+  const handleLogClick = useCallback((log: LogEntry) => {
+    try {
+      if (!log || !log.id) {
+        return;
+      }
+      setSelectedLog(log);
+    } catch (error) {
+      // Silently fail
+    }
+  }, []);
+
+  const getLevelIcon = (level: LogLevelType | string) => {
+    const lowerLevel = String(level || 'info').toLowerCase();
+    switch (lowerLevel) {
       case 'error': return '❌';
       case 'warning': return '⚠️';
       case 'info': return 'ℹ️';
@@ -92,508 +192,415 @@ const Logs: React.FC = () => {
   };
 
   const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'device': return '🖥️';
-      case 'authentication': return '🔐';
-      case 'alert': return '🚨';
-      case 'configuration': return '⚙️';
-      case 'request': return '🌐';
-      case 'user': return '👤';
-      case 'discovery': return '🔍';
-      default: return '📄';
+    const icons: { [key: string]: string } = {
+      device: '🖥️',
+      authentication: '🔐',
+      alert: '🚨',
+      configuration: '⚙️',
+      request: '🌐',
+      user: '👤',
+      discovery: '🔍'
+    };
+    return icons[category] || '📄';
+  };
+
+  // Función para exportar logs
+  const handleExport = async () => {
+    try {
+      const dateRange = getDateRange(selectedTimeRange);
+      const filters: LogFilter = {
+        search: searchQuery,
+        level: selectedLevel === 'all' ? undefined : selectedLevel,
+        category: selectedCategory === 'all' ? undefined : selectedCategory,
+        username: selectedUsername || undefined,
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+        sortBy,
+        sortOrder
+      };
+
+      const blob = await LogsService.exportLogs(filters);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `logs_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      // Silently fail
     }
   };
 
-  // Fonction d'export des logs
-  const handleExport = () => {
-    const csvContent = [
-      // En-têtes
-      ['Horodatage', 'Niveau', 'Source', 'Catégorie', 'Message', 'Détails', 'Équipement', 'Utilisateur'].join(';'),
-      // Données
-      ...filteredLogs.map(log => [
-        formatTimestamp(log.timestamp),
-        log.level.toUpperCase(),
-        log.source,
-        log.category,
-        `"${log.message}"`,
-        `"${log.details || ''}"`,
-        log.deviceName || '',
-        log.username || ''
-      ].join(';'))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `logs_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  // Función para limpiar filtros
+  const handleClearFilters = () => {
+    setSelectedLevel('all');
+    setSelectedCategory('all');
+    setSelectedSource('all');
+    setSelectedUsername('');
+    setSelectedTimeRange('24h');
+    setSearchQuery('');
+    setSortBy('timestamp');
+    setSortOrder('desc');
+    setCurrentPage(0);
   };
 
-  // Gestion des états de chargement et d'erreur
-  if (logsQuery.isLoading) {
-    return <LoadingSpinner message="Chargement des journaux..." />;
+  // Loading y error states
+  if (logsState.isLoading && logsState.logs.length === 0) {
+    return <LoadingSpinner message="Cargando registros..." />;
   }
 
-  if (logsQuery.error) {
-    return <ErrorMessage message="Erreur lors du chargement des journaux" />;
-  }
-
-  if (filteredLogs.length === 0) {
-    return (
-      <Container>
-        <Header>
-          <Title>
-            📋 Journaux Système
-          </Title>
-        </Header>
-        
-        <FiltersSection>
-          <FilterGroup>
-            <FilterLabel>Niveau :</FilterLabel>
-            <FilterSelect value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
-              <option value="all">Tous les niveaux</option>
-              <option value="error">Erreurs</option>
-              <option value="warning">Avertissements</option>
-              <option value="info">Informations</option>
-              <option value="debug">Debug</option>
-            </FilterSelect>
-          </FilterGroup>
-
-          <FilterGroup>
-            <FilterLabel>Catégorie :</FilterLabel>
-            <FilterSelect value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-              <option value="all">Toutes les catégories</option>
-              <option value="device">Équipements</option>
-              <option value="authentication">Authentification</option>
-              <option value="alert">Alertes</option>
-              <option value="configuration">Configuration</option>
-              <option value="request">Requêtes API</option>
-              <option value="user">Utilisateurs</option>
-              <option value="discovery">Découverte</option>
-            </FilterSelect>
-          </FilterGroup>
-
-          <FilterGroup>
-            <FilterLabel>Période :</FilterLabel>
-            <FilterSelect value={selectedTimeRange} onChange={(e) => setSelectedTimeRange(e.target.value)}>
-              <option value="1h">Dernière heure</option>
-              <option value="6h">6 dernières heures</option>
-              <option value="24h">24 dernières heures</option>
-              <option value="7d">7 derniers jours</option>
-              <option value="all">Toute la période</option>
-            </FilterSelect>
-          </FilterGroup>
-
-          <SearchGroup>
-            <SearchInput
-              type="text"
-              placeholder="Rechercher dans les logs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <SearchIcon>🔍</SearchIcon>
-          </SearchGroup>
-        </FiltersSection>
-
-        {/* Message d'état vide */}
-        <EmptyState>
-          <EmptyIcon>📝</EmptyIcon>
-          <EmptyTitle>Aucun journal trouvé</EmptyTitle>
-          <EmptyMessage>
-            {!logsQuery.data || (Array.isArray(logsQuery.data) && logsQuery.data.length === 0)
-              ? "Il n'y a encore aucun log dans le système. Les logs seront automatiquement générés lors des activités sur la plateforme."
-              : "Aucun log ne correspond aux filtres sélectionnés. Essayez de modifier les critères de recherche."
-            }
-          </EmptyMessage>
-        </EmptyState>
-      </Container>
-    );
+  if (logsState.error && !logsState.logs.length) {
+    return <ErrorMessage message={logsState.error} />;
   }
 
   return (
     <Container>
       <Header>
         <Title>
-          📋 Journaux Système
+          📋 Registros del Sistema
         </Title>
+        <HeaderActions>
+          <ExportButton onClick={handleExport}>
+            📥 Exportar CSV
+          </ExportButton>
+          <ClearButton onClick={handleClearFilters}>
+            🔄 Limpiar filtros
+          </ClearButton>
+        </HeaderActions>
       </Header>
 
-      <FiltersSection>
-        <FilterGroup>
-          <FilterLabel>Niveau :</FilterLabel>
-          <FilterSelect value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
-            <option value="all">Tous les niveaux</option>
-            <option value="error">Erreurs</option>
-            <option value="warning">Avertissements</option>
-            <option value="info">Informations</option>
-            <option value="debug">Debug</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <FilterGroup>
-          <FilterLabel>Catégorie :</FilterLabel>
-          <FilterSelect value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-            <option value="all">Toutes les catégories</option>
-            <option value="device">Équipements</option>
-            <option value="authentication">Authentification</option>
-            <option value="alert">Alertes</option>
-            <option value="configuration">Configuration</option>
-            <option value="request">Requêtes API</option>
-            <option value="user">Utilisateurs</option>
-            <option value="discovery">Découverte</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <FilterGroup>
-          <FilterLabel>Période :</FilterLabel>
-          <FilterSelect value={selectedTimeRange} onChange={(e) => setSelectedTimeRange(e.target.value)}>
-            <option value="1h">Dernière heure</option>
-            <option value="6h">6 dernières heures</option>
-            <option value="24h">24 dernières heures</option>
-            <option value="7d">7 derniers jours</option>
-            <option value="all">Toute la période</option>
-          </FilterSelect>
-        </FilterGroup>
-
-        <SearchGroup>
-          <SearchInput
-            type="text"
-            placeholder="Rechercher dans les logs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <SearchIcon>🔍</SearchIcon>
-        </SearchGroup>
-      </FiltersSection>
-
+      {/* Stats Cards */}
       <StatsSection>
-        <StatCard level="total">
-          <StatIcon>📊</StatIcon>
-          <StatValue>{stats.total}</StatValue>
+        <StatCard>
           <StatLabel>Total</StatLabel>
+          <StatValue style={{ color: colors.text.primary }}>
+            {stats.total.toLocaleString()}
+          </StatValue>
         </StatCard>
-        <StatCard level="error">
-          <StatIcon>❌</StatIcon>
-          <StatValue>{stats.error}</StatValue>
-          <StatLabel>Erreurs</StatLabel>
+        <StatCard>
+          <StatLabel>Errores</StatLabel>
+          <StatValue style={{ color: colors.semantic.danger }}>
+            {stats.byLevel.error}
+          </StatValue>
         </StatCard>
-        <StatCard level="warning">
-          <StatIcon>⚠️</StatIcon>
-          <StatValue>{stats.warning}</StatValue>
-          <StatLabel>Avertissements</StatLabel>
+        <StatCard>
+          <StatLabel>Advertencias</StatLabel>
+          <StatValue style={{ color: colors.semantic.warning }}>
+            {stats.byLevel.warning}
+          </StatValue>
         </StatCard>
-        <StatCard level="info">
-          <StatIcon>ℹ️</StatIcon>
-          <StatValue>{stats.info}</StatValue>
-          <StatLabel>Informations</StatLabel>
+        <StatCard>
+          <StatLabel>Info</StatLabel>
+          <StatValue style={{ color: colors.semantic.info }}>
+            {stats.byLevel.info}
+          </StatValue>
         </StatCard>
-        <StatCard level="debug">
-          <StatIcon>🔧</StatIcon>
-          <StatValue>{stats.debug}</StatValue>
+        <StatCard>
           <StatLabel>Debug</StatLabel>
+          <StatValue style={{ color: colors.neutral.darkGray }}>
+            {stats.byLevel.debug}
+          </StatValue>
         </StatCard>
       </StatsSection>
 
-      <LogsSection>
-        <LogsHeader>
-          <LogsTitle>Entrées de journal ({stats.total})</LogsTitle>
-          <ExportButton onClick={handleExport}>
-            📥 Exporter CSV
-          </ExportButton>
-        </LogsHeader>
+      {/* Filters */}
+      <FiltersSection>
+        <FilterRow>
+          <FilterGroup>
+            <FilterLabel>Nivel :</FilterLabel>
+            <FilterSelect value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
+              <option value="all">Todos los niveles</option>
+              <option value="error">Errores</option>
+              <option value="warning">Advertencias</option>
+              <option value="info">Información</option>
+              <option value="debug">Debug</option>
+            </FilterSelect>
+          </FilterGroup>
 
-        <LogsList>
-          {paginatedLogs.map(log => (
-            <LogEntryItem key={log.id} onClick={() => setSelectedLog(log)}>
-              <LogMain>
-                <LogHeader>
-                  <LogLevelStyled level={log.level}>
-                    {getLevelIcon(log.level)}
-                  </LogLevelStyled>
-                  <LogCategory>
-                    {getCategoryIcon(log.category)}
-                  </LogCategory>
-                  <LogMessage>{log.message}</LogMessage>
-                  <LogTime>{getRelativeTime(log.timestamp)}</LogTime>
-                </LogHeader>
-                <LogDetails>{log.details}</LogDetails>
-                <LogMeta>
-                  <LogSource>Source: {log.source}</LogSource>
-                  <LogTimestamp>{formatTimestamp(log.timestamp)}</LogTimestamp>
-                  {log.deviceName && <LogDevice>Équipement: {log.deviceName}</LogDevice>}
-                  {log.username && <LogUser>Utilisateur: {log.username}</LogUser>}
-                </LogMeta>
-              </LogMain>
-            </LogEntryItem>
-          ))}
-        </LogsList>
-      </LogsSection>
+          <FilterGroup>
+            <FilterLabel>Categoría :</FilterLabel>
+            <FilterSelect value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+              <option value="all">Todas las categorías</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </FilterSelect>
+          </FilterGroup>
 
-      {/* Modal de détails du log */}
+          <FilterGroup>
+            <FilterLabel>Fuente :</FilterLabel>
+            <FilterSelect value={selectedSource} onChange={(e) => setSelectedSource(e.target.value)}>
+              <option value="all">Todas las fuentes</option>
+              {sources.map(src => (
+                <option key={src} value={src}>{src}</option>
+              ))}
+            </FilterSelect>
+          </FilterGroup>
+
+          <FilterGroup>
+            <FilterLabel>Período :</FilterLabel>
+            <FilterSelect value={selectedTimeRange} onChange={(e) => setSelectedTimeRange(e.target.value)}>
+              <option value="1h">Última hora</option>
+              <option value="6h">Últimas 6 horas</option>
+              <option value="24h">Últimas 24 horas</option>
+              <option value="7d">Últimos 7 días</option>
+              <option value="all">Todo el período</option>
+            </FilterSelect>
+          </FilterGroup>
+        </FilterRow>
+
+        <FilterRow>
+          <SearchGroup>
+            <SearchInput
+              type="text"
+              placeholder="Buscar en registros..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <SearchIcon>🔍</SearchIcon>
+          </SearchGroup>
+
+          <FilterGroup>
+            <FilterLabel>Usuario :</FilterLabel>
+            <FilterInput
+              type="text"
+              placeholder="Nombre de usuario"
+              value={selectedUsername}
+              onChange={(e) => setSelectedUsername(e.target.value)}
+            />
+          </FilterGroup>
+
+          <FilterGroup>
+            <FilterLabel>Ordenar por :</FilterLabel>
+            <FilterSelect value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+              <option value="timestamp">Hora</option>
+              <option value="level">Nivel</option>
+              <option value="category">Categoría</option>
+            </FilterSelect>
+          </FilterGroup>
+
+          <FilterGroup>
+            <FilterLabel>Orden :</FilterLabel>
+            <FilterSelect value={sortOrder} onChange={(e) => setSortOrder(e.target.value as any)}>
+              <option value="desc">Descendente</option>
+              <option value="asc">Ascendente</option>
+            </FilterSelect>
+          </FilterGroup>
+        </FilterRow>
+      </FiltersSection>
+
+      {/* Logs Results */}
+      {logsState.logs.length > 0 ? (
+        <>
+          <ResultsInfo>
+            Mostrando {logsState.logs.length} de {logsState.total} registros
+            {logsState.isLoading && <Spinner>⏳</Spinner>}
+          </ResultsInfo>
+
+          <LogsList>
+            {logsState.logs.map((log: any) => {
+              // Proteger contra valores undefined
+              const logLevel = log.level || 'info';
+              const logCategory = log.category || 'unknown';
+              const logMessage = log.message || 'Sin mensaje';
+              const logTimestamp = log.timestamp || new Date().toISOString();
+              const logDetails = log.details || null;
+              const logSource = log.source || 'system';
+              const logDeviceName = log.deviceName || null;
+              const logUsername = log.username || null;
+              
+              return (
+                <LogEntryItem key={log.id || Math.random()} onClick={() => handleLogClick(log)}>
+                  <LogMain>
+                    <LogHeader>
+                      <LogLevelStyled level={logLevel as LogLevelType}>
+                        {getLevelIcon(logLevel as LogLevelType)}
+                      </LogLevelStyled>
+                      <LogCategory>
+                        {getCategoryIcon(logCategory)} {logCategory}
+                      </LogCategory>
+                      <LogMessage>{logMessage}</LogMessage>
+                      <LogTime>{getRelativeTime(logTimestamp)}</LogTime>
+                    </LogHeader>
+                    {logDetails && (
+                      <LogDetails>
+                        {String(logDetails).substring(0, 100)}
+                        {String(logDetails).length > 100 ? '...' : ''}
+                      </LogDetails>
+                    )}
+                    <LogMeta>
+                      {logSource && <LogSource>📍 Fuente: {logSource}</LogSource>}
+                      <LogTimestamp>{formatTimestamp(logTimestamp)}</LogTimestamp>
+                      {logDeviceName && <LogDevice>🖥️ {logDeviceName}</LogDevice>}
+                      {logUsername && <LogUser>👤 {logUsername}</LogUser>}
+                    </LogMeta>
+                  </LogMain>
+                </LogEntryItem>
+              );
+            })}
+          </LogsList>
+
+          {/* Pagination */}
+          <PaginationContainer>
+            <PaginationInfo>
+              Página {currentPage + 1} de {Math.ceil(logsState.total / pageSize)}
+            </PaginationInfo>
+            <PaginationControls>
+              <PaginationButton 
+                onClick={() => setCurrentPage(0)}
+                disabled={currentPage === 0}
+              >
+                ⬅️ Primera
+              </PaginationButton>
+              <PaginationButton 
+                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                disabled={currentPage === 0}
+              >
+                &lt; Anterior
+              </PaginationButton>
+              <PaginationButton 
+                onClick={() => setCurrentPage(Math.min(Math.ceil(logsState.total / pageSize) - 1, currentPage + 1))}
+                disabled={currentPage >= Math.ceil(logsState.total / pageSize) - 1}
+              >
+                Siguiente &gt;
+              </PaginationButton>
+              <PaginationButton 
+                onClick={() => setCurrentPage(Math.ceil(logsState.total / pageSize) - 1)}
+                disabled={currentPage >= Math.ceil(logsState.total / pageSize) - 1}
+              >
+                Última ➡️
+              </PaginationButton>
+            </PaginationControls>
+          </PaginationContainer>
+        </>
+      ) : (
+        <EmptyState>
+          <EmptyIcon>📋</EmptyIcon>
+          <EmptyTitle>Sin registros</EmptyTitle>
+          <EmptyMessage>
+            No hay registros que coincidan con los filtros seleccionados.
+            Intenta ajustar los criterios de búsqueda.
+          </EmptyMessage>
+        </EmptyState>
+      )}
+
+      {/* Modal para detalles */}
       {selectedLog && (
         <ModalOverlay onClick={() => setSelectedLog(null)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
             <ModalHeader>
               <ModalTitle>
-                {getLevelIcon(selectedLog.level)} Détails du journal
+                {getLevelIcon((selectedLog.level || 'info') as LogLevelType)} Detalles del Registro
               </ModalTitle>
               <CloseButton onClick={() => setSelectedLog(null)}>✕</CloseButton>
             </ModalHeader>
             <ModalBody>
               <DetailRow>
-                <DetailLabel>Horodatage :</DetailLabel>
-                <DetailValue>{formatTimestamp(selectedLog.timestamp)}</DetailValue>
-              </DetailRow>
-              <DetailRow>
-                <DetailLabel>Niveau :</DetailLabel>
-                <DetailBadge level={selectedLog.level}>
-                  {getLevelIcon(selectedLog.level)} {selectedLog.level.toUpperCase()}
+                <DetailLabel>Nivel</DetailLabel>
+                <DetailBadge level={(selectedLog.level || 'info') as LogLevelType}>
+                  {(selectedLog.level || 'INFO').toUpperCase()}
                 </DetailBadge>
               </DetailRow>
+
               <DetailRow>
-                <DetailLabel>Source :</DetailLabel>
-                <DetailValue>{selectedLog.source}</DetailValue>
+                <DetailLabel>Categoría</DetailLabel>
+                <DetailValue>{selectedLog.category || 'Sin categoría'}</DetailValue>
               </DetailRow>
+
               <DetailRow>
-                <DetailLabel>Catégorie :</DetailLabel>
-                <DetailValue>
-                  {getCategoryIcon(selectedLog.category)} {selectedLog.category}
-                </DetailValue>
+                <DetailLabel>Mensaje</DetailLabel>
+                <DetailValue>{selectedLog.message || 'Sin mensaje'}</DetailValue>
               </DetailRow>
-              <DetailRow>
-                <DetailLabel>Message :</DetailLabel>
-                <DetailValue>{selectedLog.message}</DetailValue>
-              </DetailRow>
+
               {selectedLog.details && (
                 <DetailRow>
-                  <DetailLabel>Détails :</DetailLabel>
-                  <DetailValue>{selectedLog.details}</DetailValue>
+                  <DetailLabel>Detalles</DetailLabel>
+                  <DetailValue style={{ fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {typeof selectedLog.details === 'string' ? selectedLog.details : JSON.stringify(selectedLog.details, null, 2)}
+                  </DetailValue>
                 </DetailRow>
               )}
+
+              {selectedLog.timestamp && (
+                <DetailRow>
+                  <DetailLabel>Marca de Tiempo</DetailLabel>
+                  <DetailValue>{formatTimestamp(selectedLog.timestamp)}</DetailValue>
+                </DetailRow>
+              )}
+
+              {selectedLog.source && (
+                <DetailRow>
+                  <DetailLabel>Fuente</DetailLabel>
+                  <DetailValue>{selectedLog.source}</DetailValue>
+                </DetailRow>
+              )}
+
               {selectedLog.deviceName && (
                 <DetailRow>
-                  <DetailLabel>Équipement :</DetailLabel>
-                  <DetailValue>{selectedLog.deviceName} ({selectedLog.deviceId})</DetailValue>
+                  <DetailLabel>Dispositivo</DetailLabel>
+                  <DetailValue>{selectedLog.deviceName}</DetailValue>
                 </DetailRow>
               )}
+
               {selectedLog.username && (
                 <DetailRow>
-                  <DetailLabel>Utilisateur :</DetailLabel>
-                  <DetailValue>{selectedLog.username} ({selectedLog.userId})</DetailValue>
+                  <DetailLabel>Usuario</DetailLabel>
+                  <DetailValue>{selectedLog.username}</DetailValue>
                 </DetailRow>
               )}
             </ModalBody>
           </ModalContent>
         </ModalOverlay>
       )}
-
-      <Pagination 
-        controls={paginationControls}
-        limitOptions={[10, 25, 50, 100]}
-      />
     </Container>
   );
 };
 
-// Styled Components
+// ============================================================================
+// ESTILOS
+// ============================================================================
+
 const Container = styled.div`
   padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
-  background: white;
-  min-height: 100vh;
 `;
 
 const Header = styled.div`
-  margin-bottom: 32px;
-`;
-
-const Title = styled.h1`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 32px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 8px 0;
-`;
-
-
-const FiltersSection = styled.div`
-  display: flex;
-  gap: 20px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  align-items: end;
-`;
-
-const FilterGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const FilterLabel = styled.label`
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-`;
-
-const FilterSelect = styled.select`
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-  background: white;
-  min-width: 150px;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const SearchGroup = styled.div`
-  position: relative;
-  flex: 1;
-  max-width: 300px;
-`;
-
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 10px 40px 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const SearchIcon = styled.div`
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6b7280;
-`;
-
-const StatsSection = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
-`;
-
-const StatCard = styled.div<{ level?: string }>`
-  background: ${props => {
-    switch (props.level) {
-      case 'error': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-      case 'warning': return 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-      case 'info': return 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-      case 'debug': return 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-      default: return 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)';
-    }
-  }};
-  border: none;
-  border-radius: 16px;
-  padding: 24px;
-  text-align: center;
-  color: white;
-  box-shadow: 0 8px 32px ${props => {
-    switch (props.level) {
-      case 'error': return 'rgba(239, 68, 68, 0.3)';
-      case 'warning': return 'rgba(245, 158, 11, 0.3)';
-      case 'info': return 'rgba(59, 130, 246, 0.3)';
-      case 'debug': return 'rgba(107, 114, 128, 0.3)';
-      default: return 'rgba(96, 165, 250, 0.3)';
-    }
-  }};
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px ${props => {
-      switch (props.level) {
-        case 'error': return 'rgba(239, 68, 68, 0.4)';
-        case 'warning': return 'rgba(245, 158, 11, 0.4)';
-        case 'info': return 'rgba(59, 130, 246, 0.4)';
-        case 'debug': return 'rgba(107, 114, 128, 0.4)';
-        default: return 'rgba(96, 165, 250, 0.4)';
-      }
-    }};
-  }
-`;
-
-const StatIcon = styled.div`
-  font-size: 28px;
-  margin-bottom: 12px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-`;
-
-const StatValue = styled.div`
-  font-size: 28px;
-  font-weight: 800;
-  color: white;
-  margin-bottom: 6px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-`;
-
-const StatLabel = styled.div`
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const LogsSection = styled.div`
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-`;
-
-const LogsHeader = styled.div`
-  background: white;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
 `;
 
-const LogsTitle = styled.h3`
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
+const Title = styled.h1`
+  font-size: 32px;
+  font-weight: 700;
+  color: ${colors.text.primary};
   margin: 0;
 `;
 
-const ExportButton = styled.button`
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  border: none;
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const ActionButton = styled.button`
+  padding: 10px 16px;
   border-radius: 8px;
-  color: white;
+  border: none;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+  white-space: nowrap;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   &:active {
@@ -601,22 +608,215 @@ const ExportButton = styled.button`
   }
 `;
 
-const LogsList = styled.div`
-  max-height: 600px;
-  overflow-y: auto;
+const ExportButton = styled(ActionButton)`
+  background: ${colors.primary.blue};
+  color: white;
+
+  &:hover {
+    background: ${colors.primary.blueDark};
+  }
 `;
 
-const LogEntryItem = styled.div`
+const ClearButton = styled(ActionButton)`
+  background: ${colors.neutral.lightGray};
+  color: ${colors.text.primary};
+
+  &:hover {
+    background: ${colors.neutral.mediumGray};
+    color: white;
+  }
+`;
+
+const StatsSection = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+`;
+
+const StatCard = styled.div`
   background: white;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 20px 24px;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid ${colors.border.light};
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: ${colors.primary.blue};
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const StatLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${colors.text.secondary};
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+`;
+
+const StatValue = styled.div`
+  font-size: 28px;
+  font-weight: 700;
+`;
+
+const FiltersSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid ${colors.border.light};
+  margin-bottom: 24px;
+`;
+
+const FilterRow = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const FilterGroup = styled.div`
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const FilterLabel = styled.label`
+  font-size: 12px;
+  font-weight: 600;
+  color: ${colors.text.secondary};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const FilterSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid ${colors.border.light};
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  color: ${colors.text.primary};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-color: ${colors.primary.blue};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary.blue};
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+  }
+`;
+
+const FilterInput = styled.input`
+  padding: 8px 12px;
+  border: 1px solid ${colors.border.light};
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${colors.primary.blue};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary.blue};
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+  }
+`;
+
+const SearchGroup = styled.div`
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid ${colors.border.light};
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${colors.primary.blue};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary.blue};
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+  }
+
+  &::placeholder {
+    color: ${colors.text.secondary};
+  }
+`;
+
+const SearchIcon = styled.span`
+  position: absolute;
+  left: 12px;
+  font-size: 16px;
+  color: ${colors.text.secondary};
+  pointer-events: none;
+`;
+
+const ResultsInfo = styled.div`
+  font-size: 13px;
+  color: ${colors.text.secondary};
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const Spinner = styled.span`
+  display: inline-block;
+  animation: spin 0.6s linear infinite;
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const LogsList = styled.div`
+  background: white;
+  border-radius: 12px;
+  border: 1px solid ${colors.border.light};
+  max-height: 600px;
+  overflow-y: auto;
+  margin-bottom: 24px;
+`;
+
+const LogEntryItem = styled.div`
+  background: white;
+  border-bottom: 1px solid ${colors.border.light};
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${colors.background.secondary};
     transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 
   &:last-child {
@@ -624,13 +824,17 @@ const LogEntryItem = styled.div`
   }
 `;
 
-const LogMain = styled.div``;
+const LogMain = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
 
 const LogHeader = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
 `;
 
 const LogLevelStyled = styled.div<{ level: LogLevelType }>`
@@ -641,55 +845,55 @@ const LogLevelStyled = styled.div<{ level: LogLevelType }>`
   height: 32px;
   border-radius: 8px;
   font-size: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
   background: ${props => {
     switch (props.level) {
-      case 'error': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-      case 'warning': return 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-      case 'info': return 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-      case 'debug': return 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-      default: return 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)';
+      case 'error': return colors.semantic.danger;
+      case 'warning': return colors.semantic.warning;
+      case 'info': return colors.semantic.info;
+      case 'debug': return colors.neutral.lightGray;
+      default: return colors.primary.blue;
     }
   }};
 `;
 
 const LogCategory = styled.div`
-  font-size: 18px;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: ${colors.background.secondary};
+  border-radius: 6px;
+  border: 1px solid ${colors.border.light};
+  white-space: nowrap;
 `;
 
 const LogMessage = styled.div`
   font-weight: 600;
-  color: #1e293b;
+  color: ${colors.text.primary};
   flex: 1;
-  font-size: 16px;
+  font-size: 14px;
+  min-width: 200px;
 `;
 
 const LogTime = styled.div`
-  font-size: 13px;
-  color: #64748b;
-  background: #f8fafc;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  font-weight: 500;
+  font-size: 12px;
+  color: ${colors.text.secondary};
+  white-space: nowrap;
 `;
 
 const LogDetails = styled.div`
-  color: #64748b;
-  font-size: 14px;
-  margin-bottom: 8px;
+  color: ${colors.text.secondary};
+  font-size: 13px;
   line-height: 1.4;
+  padding-left: 44px;
 `;
 
 const LogMeta = styled.div`
   display: flex;
   gap: 16px;
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11px;
+  color: ${colors.text.secondary};
+  padding-left: 44px;
+  flex-wrap: wrap;
 `;
 
 const LogSource = styled.span``;
@@ -697,11 +901,11 @@ const LogTimestamp = styled.span``;
 const LogDevice = styled.span``;
 const LogUser = styled.span``;
 
-// Styles pour l'état vide
+// Empty State Styles
 const EmptyState = styled.div`
   text-align: center;
   padding: 80px 20px;
-  color: #64748b;
+  color: ${colors.text.secondary};
 `;
 
 const EmptyIcon = styled.div`
@@ -713,7 +917,7 @@ const EmptyIcon = styled.div`
 const EmptyTitle = styled.h3`
   font-size: 24px;
   font-weight: 600;
-  color: #374151;
+  color: ${colors.text.primary};
   margin: 0 0 12px 0;
 `;
 
@@ -722,7 +926,7 @@ const EmptyMessage = styled.p`
   line-height: 1.5;
   max-width: 500px;
   margin: 0 auto;
-  color: #64748b;
+  color: ${colors.text.secondary};
 `;
 
 // Modal Styles
@@ -754,9 +958,9 @@ const ModalContent = styled.div`
 `;
 
 const ModalHeader = styled.div`
-  background: #f8fafc;
+  background: ${colors.background.secondary};
   padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid ${colors.border.light};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -765,7 +969,7 @@ const ModalHeader = styled.div`
 const ModalTitle = styled.h3`
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: ${colors.text.primary};
   margin: 0;
 `;
 
@@ -773,12 +977,13 @@ const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 18px;
-  color: #64748b;
+  color: ${colors.text.secondary};
   cursor: pointer;
   padding: 4px;
+  transition: color 0.2s ease;
 
   &:hover {
-    color: #374151;
+    color: ${colors.text.primary};
   }
 `;
 
@@ -788,7 +993,7 @@ const ModalBody = styled.div`
 `;
 
 const DetailRow = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 
   &:last-child {
     margin-bottom: 0;
@@ -796,25 +1001,31 @@ const DetailRow = styled.div`
 `;
 
 const DetailLabel = styled.div`
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 4px;
-  font-size: 14px;
+  font-weight: 600;
+  color: ${colors.text.secondary};
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const DetailValue = styled.div`
-  color: #1e293b;
-  line-height: 1.4;
+  color: ${colors.text.primary};
+  line-height: 1.5;
+  background: ${colors.background.secondary};
+  padding: 8px 12px;
+  border-radius: 6px;
+  word-break: break-word;
 `;
 
 const DetailBadge = styled.div<{ level: LogLevelType }>`
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   background: ${props => {
     switch (props.level) {
       case 'error': return '#fee2e2';
@@ -833,6 +1044,55 @@ const DetailBadge = styled.div<{ level: LogLevelType }>`
       default: return '#475569';
     }
   }};
+`;
+
+const PaginationContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid ${colors.border.light};
+  flex-wrap: wrap;
+  gap: 16px;
+`;
+
+const PaginationInfo = styled.div`
+  font-size: 14px;
+  color: ${colors.text.secondary};
+  font-weight: 500;
+`;
+
+const PaginationControls = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const PaginationButton = styled.button<{ disabled?: boolean }>`
+  padding: 8px 12px;
+  border: 1px solid ${colors.border.light};
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: ${colors.text.primary};
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: ${colors.background.secondary};
+    border-color: ${colors.primary.blue};
+    color: ${colors.primary.blue};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 export default Logs;

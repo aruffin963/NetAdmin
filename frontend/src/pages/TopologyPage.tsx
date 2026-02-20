@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import LazyNetworkMap from '../components/NetworkTopology/LazyNetworkMap';
 import { AdvancedTopologyTools } from '../components/TopologyTools/AdvancedTopologyTools';
 import { LoadingSpinner, ErrorMessage } from '../components/Common';
@@ -35,10 +36,7 @@ const Title = styled.h1`
   gap: 12px;
   font-size: 32px;
   font-weight: 800;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #000000;
   margin: 0 0 8px 0;
 `;
 
@@ -67,7 +65,7 @@ const StatCard = styled.div`
 const StatValue = styled.div`
   font-size: 28px;
   font-weight: 800;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+  background: ${colors.primary.blue};
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -146,14 +144,14 @@ const Tab = styled.button<{ active: boolean }>`
   cursor: pointer;
   transition: all 0.2s ease;
   background: ${props => props.active ? 
-    'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' : 
+    colors.primary.blue : 
     'white'};
   color: ${props => props.active ? 'white' : '#64748b'};
   border: ${props => props.active ? 'none' : '1px solid #e2e8f0'};
 
   &:hover {
     background: ${props => props.active ? 
-      'linear-gradient(135deg, #34d399 0%, #60a5fa 100%)' : 
+      colors.primary.blue : 
       '#f1f5f9'};
     color: ${props => props.active ? 'white' : '#1e293b'};
   }
@@ -188,7 +186,7 @@ const StatsCard = styled.div`
   .stat-item {
     text-align: center;
     padding: 20px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: ${colors.background.tertiary};
     border-radius: 12px;
     border: 1px solid #e2e8f0;
     transition: all 0.2s ease;
@@ -196,7 +194,7 @@ const StatsCard = styled.div`
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+      background: ${colors.primary.blue};
       
       .value, .label {
         color: white;
@@ -207,7 +205,7 @@ const StatsCard = styled.div`
       display: block;
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+      background: ${colors.primary.blue};
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -254,7 +252,7 @@ const DeviceCard = styled.div`
     background: #f8fafc;
     
     &:hover {
-      background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+      background: ${colors.primary.blue};
       transform: translateX(4px);
       box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
       
@@ -278,7 +276,7 @@ const DeviceCard = styled.div`
     .device-icon {
       width: 48px;
       height: 48px;
-      background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+      background: ${colors.primary.blue};
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -514,7 +512,7 @@ export const TopologyPage: React.FC = () => {
         <Sidebar>
           {/* Titre de la sidebar */}
           <div style={{
-            background: 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)',
+            background: colors.primary.blue,
             padding: '16px 20px',
             borderRadius: '12px',
             marginBottom: '20px',
@@ -616,7 +614,7 @@ export const TopologyPage: React.FC = () => {
 
           {/* Informations supplémentaires */}
           <div style={{
-            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            background: colors.background.secondary,
             border: '1px solid #e2e8f0',
             borderRadius: '12px',
             padding: '20px',

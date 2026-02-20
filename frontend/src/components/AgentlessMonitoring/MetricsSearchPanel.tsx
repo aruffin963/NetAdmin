@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 
 interface MetricData {
   id: number;
@@ -135,7 +136,7 @@ const MetricsSearchPanel: React.FC = () => {
 
 const Container = styled.div`
   padding: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  background: ${colors.neutral.white};
   border-radius: 16px;
   border: 1px solid #e0e8ff;
 `;
@@ -174,7 +175,7 @@ const SearchInput = styled.input`
 
 const SearchButton = styled.button`
   padding: 12px 24px;
-  background: linear-gradient(135deg, #0066ff 0%, #10b981 100%);
+  background: ${colors.primary.blue};
   color: white;
   border: none;
   border-radius: 12px;

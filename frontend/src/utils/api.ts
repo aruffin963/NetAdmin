@@ -12,6 +12,9 @@ export const apiClient = axios.create({
   withCredentials: true, // Important for session cookies
 });
 
+// Alias para compatibilidad
+export const api = apiClient;
+
 // Intercepteur pour les requêtes
 apiClient.interceptors.request.use(
   (config) => {

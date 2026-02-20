@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 import { NetworkDevice } from '../../types/monitoring';
 
 interface DeleteDeviceModalProps {
@@ -40,7 +41,7 @@ const ModalContent = styled.div`
 `;
 
 const ModalHeader = styled.div`
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  background: ${colors.semantic.danger};
   color: white;
   padding: 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import { FaBuilding, FaPlus, FaEdit, FaTrash, FaNetworkWired, FaServer } from 'react-icons/fa';
+import { useNotification } from '../context/NotificationContext';
 
 interface Organization {
   id: number;
@@ -23,6 +25,7 @@ const OrganizationListPage: React.FC = () => {
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const [formData, setFormData] = useState({ name: '', domain: '' });
   const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const { showConfirm } = useNotification();
 
   useEffect(() => {
     fetchOrganizations();
@@ -101,28 +104,33 @@ const OrganizationListPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (org: Organization) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer "${org.name}" ?\n\nCette action est irréversible.`)) {
-      return;
-    }
+  const handleDelete = (org: Organization) => {
+    showConfirm({
+      title: 'Supprimer l\'organisation',
+      message: `Voulez-vous vraiment supprimer "${org.name}"?\n\nCette action est irréversible.`,
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDangerous: true,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`http://localhost:5000/api/organizations/${org.id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+          });
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/organizations/${org.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+          const result = await response.json();
 
-      const result = await response.json();
-
-      if (result.success) {
-        showAlert('success', 'Organisation supprimée avec succès');
-        fetchOrganizations();
-      } else {
-        showAlert('error', result.message);
+          if (result.success) {
+            showAlert('success', 'Organisation supprimée avec succès');
+            fetchOrganizations();
+          } else {
+            showAlert('error', result.message);
+          }
+        } catch (error) {
+          showAlert('error', 'Erreur lors de la suppression');
+        }
       }
-    } catch (error) {
-      showAlert('error', 'Erreur lors de la suppression');
-    }
+    });
   };
 
   const openEditModal = (org: Organization) => {
@@ -352,7 +360,7 @@ const Header = styled.div`
 
 const Title = styled.h1`
   font-size: 2rem;
-  color: #2c3e50;
+  color: #000000;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -364,7 +372,7 @@ const CreateButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  background: ${colors.primary.blue};
   color: white;
   border: none;
   border-radius: 8px;
@@ -444,7 +452,7 @@ const OrgHeader = styled.div`
 const OrgIcon = styled.div`
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  background: ${colors.primary.blue};
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -618,7 +626,7 @@ const ModalHeader = styled.div`
 
 const ModalTitle = styled.h2`
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: #000000;
   margin: 0;
   display: flex;
   align-items: center;
@@ -706,7 +714,7 @@ const SubmitButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  background: ${colors.primary.blue};
   color: white;
   border: none;
   border-radius: 8px;

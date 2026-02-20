@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 import Sidebar from './Sidebar';
 
 interface LayoutProps {
@@ -9,7 +10,7 @@ interface LayoutProps {
 const LayoutContainer = styled.div`
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: ${colors.background.primary};
 `;
 
 const MainContent = styled.main`

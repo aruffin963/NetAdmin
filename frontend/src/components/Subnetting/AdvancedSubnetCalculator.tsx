@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 
 interface SubnetResult {
   id: number;
@@ -455,7 +456,7 @@ const ResultsHeader = styled.div`
 
 const ExportButton = styled.button`
   padding: 10px 20px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: ${colors.semantic.success};
   border: none;
   border-radius: 8px;
   color: white;
@@ -468,7 +469,7 @@ const ExportButton = styled.button`
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    background: ${colors.semantic.success};
   }
 
   &:active {

@@ -18,15 +18,15 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 );
 
 -- Indexes pour améliorer les performances de recherche
-CREATE INDEX idx_activity_logs_user_id ON activity_logs(user_id);
-CREATE INDEX idx_activity_logs_username ON activity_logs(username);
-CREATE INDEX idx_activity_logs_action ON activity_logs(action);
-CREATE INDEX idx_activity_logs_resource_type ON activity_logs(resource_type);
-CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);
-CREATE INDEX idx_activity_logs_status ON activity_logs(status);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_username ON activity_logs(username);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_resource_type ON activity_logs(resource_type);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_status ON activity_logs(status);
 
 -- Index GIN pour recherche dans les détails JSONB
-CREATE INDEX idx_activity_logs_details ON activity_logs USING GIN (details);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_details ON activity_logs USING GIN (details);
 
 COMMENT ON TABLE activity_logs IS 'Audit trail of all user actions and system events';
 COMMENT ON COLUMN activity_logs.user_id IS 'Reference to the user who performed the action';

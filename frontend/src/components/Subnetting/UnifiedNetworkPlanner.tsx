@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 import { AdvancedSubnetCalculator } from './AdvancedSubnetCalculator';
 import { SimpleVLSMPlanner } from './SimpleVLSMPlanner';
 
@@ -156,7 +157,7 @@ const Container = styled.div`
 `;
 
 const PlannerHeader = styled.div`
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  background: ${colors.background.secondary};
   padding: 24px;
   border-bottom: 1px solid #e2e8f0;
 `;
@@ -194,7 +195,7 @@ const ModeTab = styled.button<{ active: boolean }>`
   cursor: pointer;
   transition: all 0.2s ease;
   background: ${props => props.active ? 
-    'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' : 
+    colors.primary.blue : 
     'transparent'};
   color: ${props => props.active ? 'white' : '#64748b'};
   box-shadow: ${props => props.active ? 
@@ -204,7 +205,7 @@ const ModeTab = styled.button<{ active: boolean }>`
   &:hover {
     color: ${props => props.active ? 'white' : '#1e293b'};
     background: ${props => props.active ? 
-      'linear-gradient(135deg, #34d399 0%, #60a5fa 100%)' : 
+      colors.primary.blue : 
       '#f8fafc'};
   }
 `;

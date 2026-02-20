@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 
 interface IPAnalysis {
   ip: string;
@@ -460,7 +461,7 @@ const ResultsHeader = styled.div`
 
 const ExportButton = styled.button`
   padding: 10px 20px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: ${colors.primary.blue};
   border: none;
   border-radius: 8px;
   color: white;
@@ -485,11 +486,11 @@ const OverviewGrid = styled.div`
 const OverviewCard = styled.div<{ type?: string }>`
   background: ${props => {
     switch (props.type) {
-      case 'Private': return 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)';
-      case 'Public': return 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)';
-      case 'Loopback': return 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)';
-      case 'Multicast': return 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)';
-      default: return 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)';
+      case 'Private': return colors.alert.successBg;
+      case 'Public': return colors.alert.infoBg;
+      case 'Loopback': return colors.alert.warningBg;
+      case 'Multicast': return '#f3e8ff';
+      default: return colors.background.secondary;
     }
   }};
   border: 1px solid ${props => {

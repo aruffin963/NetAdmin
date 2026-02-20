@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import MetricChart from '../components/Monitoring/MetricChart';
 import DeviceCard from '../components/Monitoring/DeviceCard';
 import { AddDeviceModal, type NewDeviceData } from '../components/Monitoring/AddDeviceModal';
@@ -291,7 +292,7 @@ const Monitoring: React.FC = () => {
 // Styled Components
 const Container = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e8f0ff 100%);
+  background: ${colors.background.secondary};
   padding: 0;
 `;
 
@@ -306,7 +307,7 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 48px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  background: ${colors.neutral.white};
   padding: 32px 40px;
   border-radius: 24px;
   border: 1.5px solid #e0e8ff;
@@ -320,7 +321,7 @@ const Title = styled.h1`
   gap: 16px;
   font-size: 36px;
   font-weight: 800;
-  background: linear-gradient(135deg, #0066ff 0%, #00d4ff 50%, #10b981 100%);
+  background: ${colors.primary.blue};
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -335,7 +336,7 @@ const LoadingContainer = styled.div`
   justify-content: center;
   min-height: 500px;
   gap: 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  background: ${colors.neutral.white};
   border-radius: 24px;
   border: 1.5px solid #e0e8ff;
   box-shadow: 0 10px 30px rgba(0, 102, 255, 0.1);
@@ -382,7 +383,7 @@ const SectionTitle = styled.h2`
     content: '';
     width: 5px;
     height: 28px;
-    background: linear-gradient(180deg, #0066ff 0%, #10b981 100%);
+    background: ${colors.primary.blue};
     border-radius: 3px;
     box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
   }
@@ -406,7 +407,7 @@ const StatCard = styled.div`
   display: flex;
   align-items: center;
   gap: 18px;
-  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  background: ${colors.neutral.white};
   backdrop-filter: blur(20px);
   padding: 32px;
   border-radius: 20px;
@@ -423,7 +424,7 @@ const StatCard = styled.div`
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #0066ff 0%, #10b981 100%);
+    background: ${colors.primary.blue};
   }
 
   &::after {
@@ -451,7 +452,7 @@ const StatIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0066ff 0%, #00d4ff 100%);
+  background: ${colors.primary.blue};
   border-radius: 18px;
   color: white;
   box-shadow: 0 8px 24px rgba(0, 102, 255, 0.35);
@@ -488,7 +489,7 @@ const MainContent = styled.div`
 `;
 
 const DevicesSection = styled.section`
-  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  background: ${colors.neutral.white};
   padding: 40px;
   border-radius: 24px;
   border: 1.5px solid #e0e8ff;
@@ -530,7 +531,7 @@ const AddDeviceButton = styled.button`
   align-items: center;
   gap: 8px;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  background: ${colors.semantic.success};
   color: white;
   border: none;
   border-radius: 14px;
@@ -559,7 +560,7 @@ const DevicesGrid = styled.div`
 
 const ChartsSection = styled.section`
   margin-top: 48px;
-  background: linear-gradient(135deg, #ffffff 0%, #fafbff 100%);
+  background: ${colors.neutral.white};
   padding: 40px;
   border-radius: 24px;
   border: 1.5px solid #e0e8ff;
@@ -618,7 +619,7 @@ const ChartsGrid = styled.div`
 const CloseChartsButton = styled.button`
   margin-top: 32px;
   padding: 14px 28px;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  background: ${colors.background.secondary};
   border: 2px solid rgba(0, 102, 255, 0.2);
   border-radius: 14px;
   color: #374151;
@@ -632,7 +633,7 @@ const CloseChartsButton = styled.button`
   letter-spacing: 0.2px;
 
   &:hover {
-    background: linear-gradient(135deg, #0066ff 0%, #10b981 100%);
+    background: ${colors.primary.blue};
     color: white;
     transform: translateY(-3px);
     box-shadow: 0 12px 32px rgba(0, 102, 255, 0.3);

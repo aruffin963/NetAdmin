@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import { FaKey, FaEye, FaCopy, FaTrash, FaRedo, FaEyeSlash, FaLock, FaCheck, FaPlus, FaShieldAlt } from 'react-icons/fa';
+import { useNotification } from '../context/NotificationContext';
 
 // ============= STYLES =============
 
@@ -22,7 +24,7 @@ const Header = styled.div`
   
   h1 {
     font-size: 2.5rem;
-    color: #2c3e50;
+    color: #000000;
     margin: 0;
     display: flex;
     align-items: center;
@@ -216,7 +218,7 @@ const Alert = styled.div<{ type: 'success' | 'error' | 'warning' }>`
 // ============= GENERATED PASSWORD STYLES =============
 
 const GeneratedPasswordBox = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: ${colors.primary.blue};
   border-radius: 8px;
   padding: 1.5rem;
   color: white;
@@ -506,6 +508,7 @@ const PasswordGeneratorPage: React.FC = () => {
   const [unlockedPasswords, setUnlockedPasswords] = useState<Map<number, string>>(new Map());
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
   const [viewingSecretInput, setViewingSecretInput] = useState<Map<number, string>>(new Map());
+  const { showConfirm } = useNotification();
 
   // ============= EFFECTS =============
 
@@ -626,51 +629,67 @@ const PasswordGeneratorPage: React.FC = () => {
     }
   };
 
-  const handleRegeneratePassword = async (id: number) => {
-    if (!window.confirm('Régénérer ce mot de passe? L\'ancien sera perdu.')) return;
+  const handleRegeneratePassword = (id: number) => {
+    showConfirm({
+        title: 'Régénérer le mot de passe',
+        message: 'Régénérer ce mot de passe? L\'ancien sera perdu.',
+        confirmText: 'Régénérer',
+        cancelText: 'Annuler',
+        isDangerous: true,
+        onConfirm: async () => {
+          try {
+            const response = await fetch(`http://localhost:5000/api/passwords/${id}/regenerate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/passwords/${id}/regenerate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+            const result = await response.json();
+
+            if (result.success) {
+              showAlert('success', 'Mot de passe régénéré');
+              setUnlockedPasswords(prev => {
+                const newMap = new Map(prev);
+                newMap.set(id, result.data.plainPassword);
+                return newMap;
+              });
+              setVisiblePasswords(prev => new Set(prev).add(id));
+              fetchPasswords();
+            } else {
+              showAlert('error', 'Erreur lors de la régénération');
+            }
+          } catch (error) {
+            showAlert('error', 'Erreur de connexion');
+          }
+        }
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showAlert('success', 'Mot de passe régénéré');
-        setUnlockedPasswords(prev => {
-          const newMap = new Map(prev);
-          newMap.set(id, result.data.plainPassword);
-          return newMap;
-        });
-        setVisiblePasswords(prev => new Set(prev).add(id));
-        fetchPasswords();
-      } else {
-        showAlert('error', 'Erreur lors de la régénération');
-      }
-    } catch (error) {
-      showAlert('error', 'Erreur de connexion');
-    }
   };
 
-  const handleDeletePassword = async (id: number) => {
-    if (!window.confirm('Supprimer ce mot de passe? Cette action est irréversible.')) return;
+  const handleDeletePassword = (id: number) => {
+    showConfirm({
+      title: 'Supprimer le mot de passe',
+      message: 'Supprimer ce mot de passe? Cette action est irréversible.',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDangerous: true,
+        onConfirm: async () => {
+          try {
+            const response = await fetch(`http://localhost:5000/api/passwords/${id}`, {
+              method: 'DELETE'
+            });
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/passwords/${id}`, {
-        method: 'DELETE'
+            const result = await response.json();
+
+            if (result.success) {
+              showAlert('success', 'Mot de passe supprimé');
+              fetchPasswords();
+            } else {
+              showAlert('error', 'Erreur lors de la suppression');
+            }
+          } catch (error) {
+            showAlert('error', 'Erreur lors de la suppression');
+          }
+        }
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showAlert('success', 'Mot de passe supprimé');
-        fetchPasswords();
-      }
-    } catch (error) {
-      showAlert('error', 'Erreur lors de la suppression');
-    }
   };
 
   const togglePasswordVisibility = (id: number) => {

@@ -11,7 +11,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZON
 ALTER TABLE users ALTER COLUMN created_at TYPE TIMESTAMP WITH TIME ZONE;
 ALTER TABLE users ALTER COLUMN updated_at TYPE TIMESTAMP WITH TIME ZONE;
 
--- Créer la table sessions
+-- Créer la table sessions (ou ajouter les colonnes manquantes)
 CREATE TABLE IF NOT EXISTS sessions (
     id VARCHAR(255) PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -22,6 +22,14 @@ CREATE TABLE IF NOT EXISTS sessions (
     ip_address INET,
     user_agent TEXT
 );
+
+-- Ajouter les colonnes manquantes si elles n'existent pas
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_data JSONB;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address INET;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;
 
 -- Créer la table pour l'auto-save (sauvegarde automatique du travail en cours)
 CREATE TABLE IF NOT EXISTS auto_saves (

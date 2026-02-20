@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../config/colors';
 
 // Lazy load du composant lourd D3.js
 const SimpleNetworkMap = lazy(() => import('./SimpleNetworkMap'));
@@ -11,7 +12,7 @@ const LoadingContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: ${colors.background.primary};
   border-radius: 16px;
   border: 1px solid #e2e8f0;
 `;

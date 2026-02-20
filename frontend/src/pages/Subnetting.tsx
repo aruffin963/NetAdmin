@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { colors } from '../config/colors';
 import { UnifiedNetworkPlanner } from '../components/Subnetting/UnifiedNetworkPlanner';
 import { IPAnalyzer } from '../components/Subnetting/IPAnalyzer';
 import { AdvancedNetworkTools } from '../components/Subnetting/AdvancedNetworkTools';
@@ -22,9 +23,7 @@ const Title = styled.h1`
   gap: 16px;
   font-size: 32px;
   font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #000000;
   margin: 0;
 `;
 
@@ -124,7 +123,7 @@ const StatLabel = styled.div`
 `;
 
 const InfoPanel = styled.div`
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: ${colors.background.secondary};
   border: 1px solid #bae6fd;
   border-radius: 12px;
   padding: 20px;
@@ -248,7 +247,7 @@ const Subnetting: React.FC = () => {
           position: 'fixed', 
           bottom: '24px', 
           right: '24px', 
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+          background: colors.semantic.success, 
           color: 'white', 
           padding: '16px 24px', 
           borderRadius: '12px',

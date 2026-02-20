@@ -12,9 +12,12 @@ import {
   User,
   UserCircle,
   Search,
-  Key
+  Key,
+  Settings,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { colors } from '../../config/colors';
 
 // Animations
 const slideInLeft = keyframes`
@@ -49,16 +52,17 @@ const pulse = keyframes`
 // Styled Components
 const SidebarContainer = styled.div`
   width: 280px;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  color: white;
+  background: ${colors.sidebar.background};
+  color: ${colors.sidebar.text};
   height: 100vh;
   position: fixed;
   top: 0;
   left: 0;
   z-index: 1000;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 4px 0 20px ${colors.shadow.md};
   animation: ${slideInLeft} 0.8s ease-out;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   
   &::before {
     content: '';
@@ -67,14 +71,15 @@ const SidebarContainer = styled.div`
     right: 0;
     width: 1px;
     height: 100%;
-    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.1) 20%, rgba(255, 255, 255, 0.1) 80%, transparent 100%);
+    background: linear-gradient(180deg, transparent 0%, ${colors.sidebar.border} 20%, ${colors.sidebar.border} 80%, transparent 100%);
   }
 `;
 
 const LogoSection = styled.div`
   padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid ${colors.sidebar.border};
   position: relative;
+  flex-shrink: 0;
   
   &::after {
     content: '';
@@ -83,7 +88,7 @@ const LogoSection = styled.div`
     left: 24px;
     right: 24px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    background: linear-gradient(90deg, transparent, ${colors.sidebar.border}, transparent);
   }
 `;
 
@@ -97,12 +102,12 @@ const LogoContent = styled.div`
 const LogoIcon = styled.div`
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+  background: ${colors.primary.blue};
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
   animation: ${pulse} 3s infinite;
   
   svg {
@@ -115,15 +120,33 @@ const LogoIcon = styled.div`
 const LogoText = styled.span`
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: ${colors.primary.blue};
 `;
 
 const Navigation = styled.nav`
   padding: 24px 16px;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: ${colors.sidebar.border} transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${colors.sidebar.border};
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
 `;
 
 const MenuList = styled.ul`
@@ -146,10 +169,8 @@ const MenuLink = styled(Link)<{ $isActive: boolean }>`
   padding: 14px 16px;
   border-radius: 12px;
   text-decoration: none;
-  color: ${props => props.$isActive ? '#ffffff' : '#cbd5e1'};
-  background: ${props => props.$isActive 
-    ? 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' 
-    : 'transparent'};
+  color: ${props => props.$isActive ? colors.sidebar.activeText : colors.sidebar.textMuted};
+  background: ${props => props.$isActive ? colors.sidebar.activeBackground : 'transparent'};
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -167,14 +188,10 @@ const MenuLink = styled(Link)<{ $isActive: boolean }>`
   }
   
   &:hover {
-    color: #ffffff;
-    background: ${props => props.$isActive 
-      ? 'linear-gradient(135deg, #60a5fa 0%, #34d399 100%)' 
-      : 'rgba(255, 255, 255, 0.08)'};
+    color: ${colors.sidebar.textHover};
+    background: ${props => props.$isActive ? colors.sidebar.activeBackground : colors.sidebar.hoverBackground};
     transform: translateX(4px);
-    box-shadow: ${props => props.$isActive 
-      ? '0 8px 25px rgba(96, 165, 250, 0.3)' 
-      : '0 4px 15px rgba(0, 0, 0, 0.1)'};
+    box-shadow: ${props => props.$isActive ? '0 8px 25px rgba(37, 99, 235, 0.3)' : '0 4px 15px rgba(0, 0, 0, 0.1)'};
       
     &::before {
       left: 100%;
@@ -198,13 +215,11 @@ const MenuText = styled.span`
 `;
 
 const UserSection = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
   padding: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid ${colors.sidebar.border};
   background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.2) 100%);
+  flex-shrink: 0;
 `;
 
 const UserProfile = styled.div`
@@ -214,14 +229,14 @@ const UserProfile = styled.div`
   padding: 12px 16px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid ${colors.sidebar.border};
   margin-bottom: 12px;
 `;
 
 const UserAvatar = styled.div`
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+  background: ${colors.primary.blue};
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -240,13 +255,13 @@ const UserInfo = styled.div`
   .name {
     font-size: 14px;
     font-weight: 600;
-    color: #ffffff;
+    color: ${colors.sidebar.text};
     margin: 0 0 2px 0;
   }
   
   .email {
     font-size: 12px;
-    color: #94a3b8;
+    color: ${colors.sidebar.textMuted};
     margin: 0;
   }
 `;
@@ -261,7 +276,7 @@ const LogoutButton = styled.button`
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
-  color: #fca5a5;
+  color: ${colors.semantic.danger};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -270,7 +285,7 @@ const LogoutButton = styled.button`
   &:hover {
     background: rgba(239, 68, 68, 0.2);
     border-color: rgba(239, 68, 68, 0.4);
-    color: #ffffff;
+    color: ${colors.neutral.white};
     transform: translateY(-1px);
   }
   
@@ -297,11 +312,6 @@ const Sidebar: React.FC = () => {
       label: 'Monitoring' 
     },
     { 
-      path: '/alerts', 
-      icon: Bell, 
-      label: 'Alertes' 
-    },
-    { 
       path: '/logs', 
       icon: FileText, 
       label: 'Logs' 
@@ -322,9 +332,24 @@ const Sidebar: React.FC = () => {
       label: 'Mots de passe' 
     },
     { 
+      path: '/database', 
+      icon: Database, 
+      label: 'Database' 
+    },
+    { 
+      path: '/2fa', 
+      icon: Shield, 
+      label: '2FA Security' 
+    },
+    { 
       path: '/profile', 
       icon: UserCircle, 
       label: 'Profil' 
+    },
+    { 
+      path: '/settings', 
+      icon: Settings, 
+      label: 'Paramètres' 
     },
   ];
 
@@ -342,7 +367,7 @@ const Sidebar: React.FC = () => {
       <LogoSection>
         <LogoContent>
           <LogoIcon>
-            <Database />
+            <Shield />
           </LogoIcon>
           <LogoText>NetAdmin Pro</LogoText>
         </LogoContent>

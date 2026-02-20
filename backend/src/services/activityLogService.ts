@@ -55,33 +55,48 @@ export class ActivityLogService {
   }
 
   /**
-   * Récupérer les logs avec pagination et filtres
+   * Récupérer les logs avec pagination et filtres avancés
    */
   static async getLogs(options: {
     limit?: number;
     offset?: number;
+    search?: string;
     username?: string;
     action?: string;
     resourceType?: string;
     startDate?: Date;
     endDate?: Date;
     status?: string;
+    sortBy?: string;
+    sortOrder?: string;
   } = {}): Promise<{ logs: any[]; total: number }> {
     try {
       const {
         limit = 50,
         offset = 0,
+        search,
         username,
         action,
         resourceType,
         startDate,
         endDate,
-        status
+        status,
+        sortBy = 'created_at',
+        sortOrder = 'DESC'
       } = options;
 
       let whereConditions: string[] = [];
       let params: any[] = [];
       let paramCount = 1;
+
+      // Full-text search
+      if (search) {
+        whereConditions.push(
+          `(action ILIKE $${paramCount} OR resource_name ILIKE $${paramCount} OR details::text ILIKE $${paramCount})`
+        );
+        params.push(`%${search}%`);
+        paramCount++;
+      }
 
       if (username) {
         whereConditions.push(`username ILIKE $${paramCount}`);
@@ -128,11 +143,16 @@ export class ActivityLogService {
       const countResult = await pool.query(countQuery, params);
       const total = parseInt(countResult.rows[0].count);
 
+      // Déterminer la colonne de tri
+      const sortColumn = ['timestamp', 'level', 'category', 'status'].includes(sortBy) 
+        ? sortBy === 'timestamp' ? 'created_at' : sortBy
+        : 'created_at';
+
       // Récupérer les logs
       const logsQuery = `
         SELECT * FROM activity_logs
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY ${sortColumn} ${sortOrder === 'asc' ? 'ASC' : 'DESC'}
         LIMIT $${paramCount} OFFSET $${paramCount + 1}
       `;
       
@@ -170,43 +190,180 @@ export class ActivityLogService {
   /**
    * Récupérer les statistiques des logs
    */
-  static async getStats(days: number = 7): Promise<any> {
+  static async getStats(options: {
+    startDate?: Date;
+    endDate?: Date;
+  } = {}): Promise<any> {
     try {
+      const { startDate, endDate } = options;
+
+      let whereClause = '';
+      let params: any[] = [];
+
+      if (startDate || endDate) {
+        whereClause = ' WHERE ';
+        if (startDate) {
+          whereClause += `created_at >= $${params.length + 1}`;
+          params.push(startDate);
+        }
+        if (endDate) {
+          if (startDate) whereClause += ' AND ';
+          whereClause += `created_at <= $${params.length + 1}`;
+          params.push(endDate);
+        }
+      }
+
       const query = `
         SELECT 
-          COUNT(*) as total_actions,
-          COUNT(DISTINCT username) as unique_users,
-          COUNT(CASE WHEN status = 'success' THEN 1 END) as successful_actions,
-          COUNT(CASE WHEN status = 'error' THEN 1 END) as failed_actions,
-          action,
-          resource_type,
-          COUNT(*) as count
-        FROM activity_logs
-        WHERE created_at >= NOW() - INTERVAL '${days} days'
-        GROUP BY action, resource_type
-        ORDER BY count DESC
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'success' THEN 1 END) as success,
+          COUNT(CASE WHEN status = 'error' THEN 1 END) as error,
+          COUNT(CASE WHEN status = 'warning' THEN 1 END) as warning,
+          COUNT(CASE WHEN status = 'info' THEN 1 END) as info,
+          COUNT(CASE WHEN status = 'debug' THEN 1 END) as debug,
+          json_object_agg(resource_type, count) as by_category
+        FROM (
+          SELECT status, resource_type, COUNT(*) as count
+          FROM activity_logs
+          ${whereClause}
+          GROUP BY status, resource_type
+        ) stats
       `;
-      
-      const result = await pool.query(query);
-      
-      const totalQuery = `
-        SELECT 
-          COUNT(*) as total_actions,
-          COUNT(DISTINCT username) as unique_users,
-          COUNT(CASE WHEN status = 'success' THEN 1 END) as successful_actions,
-          COUNT(CASE WHEN status = 'error' THEN 1 END) as failed_actions
-        FROM activity_logs
-        WHERE created_at >= NOW() - INTERVAL '${days} days'
-      `;
-      
-      const totalResult = await pool.query(totalQuery);
+
+      const result = await pool.query(query, params);
+      const row = result.rows[0];
 
       return {
-        summary: totalResult.rows[0],
-        byActionAndResource: result.rows
+        total: parseInt(row.total) || 0,
+        byLevel: {
+          success: parseInt(row.success) || 0,
+          error: parseInt(row.error) || 0,
+          warning: parseInt(row.warning) || 0,
+          info: parseInt(row.info) || 0,
+          debug: parseInt(row.debug) || 0
+        },
+        byCategory: row.by_category || {}
       };
     } catch (error) {
       logger.error('Failed to get log stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Récupérer les catégories disponibles
+   */
+  static async getCategories(): Promise<string[]> {
+    try {
+      const query = `
+        SELECT DISTINCT resource_type 
+        FROM activity_logs 
+        WHERE resource_type IS NOT NULL
+        ORDER BY resource_type
+      `;
+      
+      const result = await pool.query(query);
+      return result.rows.map(row => row.resource_type);
+    } catch (error) {
+      logger.error('Failed to get categories:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Récupérer les sources disponibles
+   */
+  static async getSources(): Promise<string[]> {
+    try {
+      const query = `
+        SELECT DISTINCT action 
+        FROM activity_logs 
+        WHERE action IS NOT NULL
+        ORDER BY action
+        LIMIT 20
+      `;
+      
+      const result = await pool.query(query);
+      return result.rows.map(row => row.action);
+    } catch (error) {
+      logger.error('Failed to get sources:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Archiver les logs anciens
+   */
+  static async archiveLogs(days: number): Promise<number> {
+    try {
+      // Copier vers une table d'archive si elle existe
+      const archiveQuery = `
+        INSERT INTO activity_logs_archive 
+        SELECT * FROM activity_logs 
+        WHERE created_at < NOW() - INTERVAL '${days} days'
+        ON CONFLICT DO NOTHING
+      `;
+      
+      try {
+        await pool.query(archiveQuery);
+      } catch (error) {
+        // Table d'archive n'existe pas, ignorer
+        logger.debug('Archive table does not exist, skipping archive');
+      }
+
+      // Supprimer les logs archivés
+      const deleteQuery = `
+        DELETE FROM activity_logs 
+        WHERE created_at < NOW() - INTERVAL '${days} days'
+      `;
+      
+      const result = await pool.query(deleteQuery);
+      const deletedCount = result.rowCount || 0;
+      
+      logger.info(`Archived ${deletedCount} activity logs older than ${days} days`);
+      return deletedCount;
+    } catch (error) {
+      logger.error('Failed to archive logs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Supprimer les logs selon les filters
+   */
+  static async deleteLogs(options: {
+    status?: string;
+    days?: number;
+  }): Promise<number> {
+    try {
+      let whereConditions: string[] = [];
+      let params: any[] = [];
+      let paramCount = 1;
+
+      if (options.status) {
+        whereConditions.push(`status = $${paramCount}`);
+        params.push(options.status);
+        paramCount++;
+      }
+
+      if (options.days) {
+        whereConditions.push(`created_at < NOW() - INTERVAL '${options.days} days'`);
+      }
+
+      if (whereConditions.length === 0) {
+        throw new Error('No delete criteria specified');
+      }
+
+      const whereClause = whereConditions.join(' AND ');
+      const deleteQuery = `DELETE FROM activity_logs WHERE ${whereClause}`;
+      
+      const result = await pool.query(deleteQuery, params);
+      const deletedCount = result.rowCount || 0;
+      
+      logger.info(`Deleted ${deletedCount} activity logs`);
+      return deletedCount;
+    } catch (error) {
+      logger.error('Failed to delete logs:', error);
       throw error;
     }
   }

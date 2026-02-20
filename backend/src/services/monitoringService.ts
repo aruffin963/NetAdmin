@@ -3,6 +3,7 @@ import { Client as SSHClient } from 'ssh2';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { logger } from '../utils/logger';
+import ZabbixService from './zabbixService';
 
 const execAsync = promisify(exec);
 
@@ -19,7 +20,7 @@ export interface DeviceMetrics {
   status: 'online' | 'offline';
   responseTime: number;
   timestamp: Date;
-  source: 'snmp' | 'ssh' | 'wmi' | 'ping' | 'local';
+  source: 'snmp' | 'ssh' | 'wmi' | 'ping' | 'local' | 'zabbix';
 }
 
 export interface DeviceConfig {
@@ -36,6 +37,7 @@ export interface DeviceConfig {
   sshKey?: string;
   sshPort?: number;
   wmiEnabled?: boolean;
+  zabbixHostId?: string; // Pour intégration Zabbix
 }
 
 export class MonitoringService {
@@ -95,6 +97,33 @@ export class MonitoringService {
       // Résoudre le DNS en parallèle
       const dnsName = await this.resolveDNS(config.ip).catch(() => undefined);
       logger.info(`Monitoring ${config.ip} (type: ${config.type})`);
+
+      // 0. Vérifier Zabbix en premier si disponible
+      if (config.zabbixHostId && ZabbixService.isConnected()) {
+        try {
+          logger.info(`Tentative Zabbix pour ${config.hostname} (${config.zabbixHostId})`);
+          const zabbixMetrics = await ZabbixService.parseHostMetrics(
+            config.zabbixHostId,
+            config.hostname
+          );
+          
+          return {
+            deviceId: config.id,
+            hostname: config.hostname,
+            dnsName,
+            cpuUsage: zabbixMetrics.cpu,
+            memoryUsage: zabbixMetrics.memory,
+            diskUsage: zabbixMetrics.disk,
+            uptime: zabbixMetrics.uptime,
+            responseTime: Date.now() - startTime,
+            source: 'zabbix',
+            timestamp: new Date(),
+            status: zabbixMetrics.status,
+          };
+        } catch (e) {
+          logger.warn(`✗ Zabbix échoué pour ${config.hostname}:`, (e as Error).message);
+        }
+      }
 
       // Vérifier si c'est localhost/127.0.0.1 - utiliser les métriques locales
       const isLocalhost = config.ip === '127.0.0.1' || config.ip === 'localhost' || config.ip === '::1';
