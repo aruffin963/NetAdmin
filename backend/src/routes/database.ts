@@ -73,12 +73,12 @@ router.post('/migrations/run', async (req: Request, res: Response) => {
  * POST /api/database/migrations/rollback
  * Annule la dernière migration
  */
-router.post('/migrations/rollback', async (req: Request, res: Response) => {
+router.post('/migrations/rollback', async (req: Request, res: Response): Promise<void> => {
   try {
     const rolled = await MigrationManager.rollbackLastMigration();
     
     if (!rolled) {
-      return res.json({
+      res.json({
         success: false,
         message: 'No migrations to rollback',
       });
@@ -219,12 +219,12 @@ router.get('/backups', (req: Request, res: Response) => {
  * Restaure une sauvegarde
  * Body: { backupName: string }
  */
-router.post('/restore', async (req: Request, res: Response) => {
+router.post('/restore', async (req: Request, res: Response): Promise<void> => {
   try {
     const { backupName } = req.body;
 
     if (!backupName) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'backupName is required',
       });
@@ -233,7 +233,7 @@ router.post('/restore', async (req: Request, res: Response) => {
     const backupPath = join(BACKUP_DIR, backupName);
 
     if (!existsSync(backupPath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Backup file not found',
       });
@@ -280,16 +280,17 @@ router.post('/restore', async (req: Request, res: Response) => {
  * DELETE /api/database/backups/:name
  * Supprime une sauvegarde
  */
-router.delete('/backups/:name', (req: Request, res: Response) => {
+router.delete('/backups/:name', (req: Request, res: Response): void => {
   try {
     const { name } = req.params;
     const backupPath = join(BACKUP_DIR, name);
 
     if (!existsSync(backupPath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Backup file not found',
       });
+      return;
     }
 
     require('fs').unlinkSync(backupPath);

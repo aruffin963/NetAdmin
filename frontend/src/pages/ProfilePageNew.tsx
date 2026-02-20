@@ -167,37 +167,6 @@ const StatsGrid = styled.div`
   margin-top: 40px;
 `;
 
-const StatBox = styled.div`
-  background: rgba(37, 99, 235, 0.05);
-  border: 1px solid ${colors.border.light};
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: rgba(37, 99, 235, 0.08);
-    border-color: ${colors.primary.blue};
-    transform: translateY(-5px);
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 28px;
-  font-weight: 900;
-  color: ${colors.primary.blue};
-  margin-bottom: 8px;
-`;
-
-const StatLabel = styled.div`
-  font-size: 12px;
-  color: ${colors.text.secondary};
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-`;
-
 const InfoPanel = styled.div`
   animation: slideInRight 0.8s ease-out;  color: ${colors.text.primary};
   @keyframes slideInRight {
@@ -210,52 +179,6 @@ const InfoPanel = styled.div`
       transform: translateX(0);
     }
   }
-`;
-
-const InfoCard = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid ${colors.border.light};
-  border-radius: 20px;
-  padding: 28px;
-  margin-bottom: 20px;
-  transition: all 0.3s ease;
-  position: relative;
-  color: ${colors.text.primary};
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.98);
-    border-color: ${colors.primary.blue};
-    transform: translateX(8px);
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: ${colors.primary.blue};
-    border-radius: 20px 0 0 20px;
-  }
-`;
-
-const InfoTitle = styled.h3`
-  color: ${colors.text.primary};
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 0 0 12px 0;
-  font-weight: 700;
-`;
-
-const InfoValue = styled.p`
-  color: ${colors.text.primary};
-  font-size: 16px;
-  margin: 0;
-  font-weight: 600;
-  font-family: 'Monaco', monospace;
 `;
 
 const SectionTitle = styled.h2`
@@ -378,55 +301,6 @@ const ActionButton = styled.button`
     transform: translateY(0);
   }
 `;
-
-const SecurityScore = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid ${colors.border.light};
-  border-radius: 20px;
-  padding: 40px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  color: ${colors.text.primary};
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, ${colors.semantic.success}, transparent);
-  }
-`;
-
-const ScoreCircle = styled.div<{ score: number }>`
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: conic-gradient(${colors.semantic.success} 0deg, ${colors.semantic.success} ${props => (props.score / 100) * 360}deg, rgba(255, 255, 255, 0.08) ${props => (props.score / 100) * 360}deg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 30px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  font-weight: 900;
-
-  span:first-child {
-    font-size: 56px;
-    color: ${colors.semantic.success};
-  }
-
-  span:last-child {
-    font-size: 12px;
-    color: ${colors.text.secondary};
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-`;
-
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -561,9 +435,9 @@ export const ProfilePageNew: React.FC = () => {
     confirm: '',
   });
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
-  const [profileData, setProfileData] = useState({
+  const [, setProfileData] = useState({
     loginCount: 0,
     lastLogin: new Date(),
     createdAt: new Date(),
@@ -582,7 +456,7 @@ export const ProfilePageNew: React.FC = () => {
         const [userResponse, activityResponse] = await Promise.all([
           apiClient.get('/api/auth/me'),
           apiClient.get('/api/activity-logs?limit=100'),
-        ]);
+        ]) as [{ data: { user: any } }, { data: { logs: any[] } }];
 
         const currentUser = userResponse.data.user;
         const logs = activityResponse.data.logs || [];
@@ -649,46 +523,6 @@ export const ProfilePageNew: React.FC = () => {
     return (user?.username || 'U').substring(0, 2).toUpperCase();
   };
 
-  const formatMemberSince = (createdAt: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - createdAt.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Aujourd\'hui';
-    if (diffDays === 1) return '1 jour';
-    if (diffDays < 30) return `${diffDays}j`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)}m`;
-    return `${Math.floor(diffDays / 365)}a`;
-  };
-
-  const formatLastLogin = (lastLogin: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - lastLogin.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMinutes < 1) return 'À l\'instant';
-    if (diffMinutes < 60) return `Il y a ${diffMinutes}m`;
-    if (diffHours < 24) return `Il y a ${diffHours}h`;
-    if (diffDays < 7) return `Il y a ${diffDays}j`;
-    
-    return lastLogin.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatSessionDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours === 0) return `${minutes}m`;
-    return `${hours}h ${minutes}m`;
-  };
-
   const updatePasswordStrength = (password: string) => {
     let strength = 0;
     if (password.length >= 8) strength += 20;
@@ -708,6 +542,19 @@ export const ProfilePageNew: React.FC = () => {
     // TODO: API call to change password
     setShowPasswordModal(false);
     setPasswordForm({ current: '', new: '', confirm: '' });
+  };
+
+  const getActionLabel = (action: string) => {
+    const labels: { [key: string]: { label: string; emoji: string } } = {
+      'LOGIN': { emoji: '🔓', label: 'Connexion' },
+      'LOGOUT': { emoji: '🚪', label: 'Déconnexion' },
+      'LOGOUT_MONITOR': { emoji: '🚪', label: 'Déconnexion Monitoring' },
+      'CHANGE_PASSWORD': { emoji: '🔐', label: 'Changement mot de passe' },
+      'API_CALL': { emoji: '🔗', label: 'Appel API' },
+      'TWO_FACTOR_ENABLE': { emoji: '🛡️', label: '2FA Activé' },
+      'TWO_FACTOR_DISABLE': { emoji: '⚠️', label: '2FA Désactivé' },
+    };
+    return labels[action] || { emoji: '📌', label: action };
   };
 
   return (
@@ -745,43 +592,48 @@ export const ProfilePageNew: React.FC = () => {
                 📋 Activités Récentes
               </h3>
               <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {activityLogs.slice(0, 5).map((log, index) => (
-                  <div key={index} style={{
-                    padding: '14px',
-                    background: index % 2 === 0 ? 'rgba(37, 99, 235, 0.03)' : 'transparent',
-                    borderBottom: `1px solid ${colors.border.light}`,
-                    borderRadius: '8px',
-                    marginBottom: '8px',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ color: colors.text.primary, fontWeight: 600, margin: '0 0 4px 0', fontSize: '13px' }}>
-                          {log.action}
-                        </p>
-                        <p style={{ color: colors.text.secondary, fontSize: '11px', margin: 0 }}>
-                          {new Date(log.createdAt).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
+                {activityLogs.slice(0, 5).map((log, index) => {
+                  const actionInfo = getActionLabel(log.action);
+                  
+                  return (
+                    <div key={index} style={{
+                      padding: '14px',
+                      background: index % 2 === 0 ? 'rgba(37, 99, 235, 0.03)' : 'transparent',
+                      borderBottom: `1px solid ${colors.border.light}`,
+                      borderRadius: '8px',
+                      marginBottom: '8px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ color: colors.text.primary, fontWeight: 600, margin: 0, fontSize: '13px' }}>
+                            {actionInfo.emoji} {actionInfo.label}
+                          </p>
+                        </div>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 8px',
+                          background: log.status === 'SUCCESS' ? colors.semantic.success : log.status === 'WARNING' ? colors.semantic.warning : colors.semantic.danger,
+                          color: 'white',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {log.status}
+                        </span>
                       </div>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '4px 8px',
-                        background: log.status === 'SUCCESS' ? colors.semantic.success : log.status === 'WARNING' ? colors.semantic.warning : colors.semantic.danger,
-                        color: 'white',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                      }}>
-                        {log.status}
-                      </span>
+                      <p style={{ color: colors.text.tertiary, fontSize: '11px', margin: '6px 0 0 0' }}>
+                        {new Date(log.createdAt).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </InfoPanel>

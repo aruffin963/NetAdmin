@@ -6,14 +6,10 @@ import {
   BarChart3, 
   Network, 
   Database,
-  Bell,
-  FileText,
   LogOut,
   User,
-  UserCircle,
   Search,
   Key,
-  Settings,
   Shield
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -312,11 +308,6 @@ const Sidebar: React.FC = () => {
       label: 'Monitoring' 
     },
     { 
-      path: '/logs', 
-      icon: FileText, 
-      label: 'Logs' 
-    },
-    { 
       path: '/subnetting', 
       icon: Network, 
       label: 'Subnetting' 
@@ -335,21 +326,6 @@ const Sidebar: React.FC = () => {
       path: '/database', 
       icon: Database, 
       label: 'Database' 
-    },
-    { 
-      path: '/2fa', 
-      icon: Shield, 
-      label: '2FA Security' 
-    },
-    { 
-      path: '/profile', 
-      icon: UserCircle, 
-      label: 'Profil' 
-    },
-    { 
-      path: '/settings', 
-      icon: Settings, 
-      label: 'Paramètres' 
     },
   ];
 

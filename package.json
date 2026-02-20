@@ -24,6 +24,7 @@
     "install:all": "npm install"
   },
   "devDependencies": {
+    "@types/nodemailer": "^7.0.10",
     "concurrently": "^8.2.2",
     "typescript": "^5.2.2"
   },

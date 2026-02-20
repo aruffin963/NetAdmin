@@ -38,15 +38,6 @@ const float = keyframes`
   }
 `;
 
-const glow = keyframes`
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(96, 165, 250, 0.8);
-  }
-`;
-
 const spin = keyframes`
   0% {
     transform: rotate(0deg);

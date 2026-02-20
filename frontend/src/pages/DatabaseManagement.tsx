@@ -274,7 +274,7 @@ const DatabaseManagement: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [migrations, setMigrations] = useState<any>(null);
   const [backups, setBackups] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+
 
   useEffect(() => {
     loadData();

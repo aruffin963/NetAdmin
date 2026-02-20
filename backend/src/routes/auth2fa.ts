@@ -26,19 +26,21 @@ interface TwoFactorRequest extends Request {
  * Démarre la configuration du 2FA
  * Retourne: secret, QR code data URL, et codes de secours
  */
-router.post('/setup', isAuthenticated, async (req: TwoFactorRequest, res: Response) => {
+router.post('/setup', isAuthenticated, async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const userEmail = req.user?.email;
 
     if (!userId || !userEmail) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     // Vérifier que le 2FA n'est pas déjà activé
     const isEnabled = await TwoFactorAuthService.isTwoFactorEnabled(userId);
     if (isEnabled) {
-      return res.status(400).json({ error: '2FA is already enabled for this account' });
+      res.status(400).json({ error: '2FA is already enabled for this account' });
+      return;
     }
 
     // Générer le secret
@@ -61,7 +63,7 @@ router.post('/setup', isAuthenticated, async (req: TwoFactorRequest, res: Respon
     });
   } catch (error) {
     logger.error('Error in 2FA setup:', error);
-    return res.status(500).json({ error: 'Failed to setup 2FA' });
+    res.status(500).json({ error: 'Failed to setup 2FA' });
   }
 });
 
@@ -70,23 +72,23 @@ router.post('/setup', isAuthenticated, async (req: TwoFactorRequest, res: Respon
  * Vérifie le code TOTP et active le 2FA
  * Body: { secret, token, backupCodes }
  */
-router.post('/verify', isAuthenticated, async (req: TwoFactorRequest, res: Response) => {
+router.post('/verify', isAuthenticated, async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { secret, token, backupCodes } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (!secret || !token || !backupCodes || !Array.isArray(backupCodes)) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
     }
 
     // Vérifier le code TOTP
     const isValidToken = TwoFactorAuthService.verifyTOTP(secret, token);
     if (!isValidToken) {
-      return res.status(400).json({ error: 'Invalid TOTP code' });
+      res.status(400).json({ error: 'Invalid TOTP code' });
     }
 
     // Activer le 2FA
@@ -106,7 +108,7 @@ router.post('/verify', isAuthenticated, async (req: TwoFactorRequest, res: Respo
     });
   } catch (error) {
     logger.error('Error verifying 2FA:', error);
-    return res.status(500).json({ error: 'Failed to verify 2FA' });
+    res.status(500).json({ error: 'Failed to verify 2FA' });
   }
 });
 
@@ -115,18 +117,18 @@ router.post('/verify', isAuthenticated, async (req: TwoFactorRequest, res: Respo
  * Désactive le 2FA
  * Body: { password } - Pour sécurité supplémentaire
  */
-router.post('/disable', isAuthenticated, async (req: TwoFactorRequest, res: Response) => {
+router.post('/disable', isAuthenticated, async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Vérifier que le 2FA est activé
     const isEnabled = await TwoFactorAuthService.isTwoFactorEnabled(userId);
     if (!isEnabled) {
-      return res.status(400).json({ error: '2FA is not enabled for this account' });
+      res.status(400).json({ error: '2FA is not enabled for this account' });
     }
 
     // Désactiver le 2FA
@@ -140,7 +142,7 @@ router.post('/disable', isAuthenticated, async (req: TwoFactorRequest, res: Resp
     });
   } catch (error) {
     logger.error('Error disabling 2FA:', error);
-    return res.status(500).json({ error: 'Failed to disable 2FA' });
+    res.status(500).json({ error: 'Failed to disable 2FA' });
   }
 });
 
@@ -148,12 +150,12 @@ router.post('/disable', isAuthenticated, async (req: TwoFactorRequest, res: Resp
  * GET /api/auth/2fa/status
  * Récupère le statut 2FA de l'utilisateur
  */
-router.get('/status', isAuthenticated, async (req: TwoFactorRequest, res: Response) => {
+router.get('/status', isAuthenticated, async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
     const status = await TwoFactorAuthService.get2FAStatus(userId);
@@ -168,7 +170,7 @@ router.get('/status', isAuthenticated, async (req: TwoFactorRequest, res: Respon
     });
   } catch (error) {
     logger.error('Error getting 2FA status:', error);
-    return res.status(500).json({ error: 'Failed to get 2FA status' });
+    res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 });
 
@@ -179,20 +181,21 @@ router.get('/status', isAuthenticated, async (req: TwoFactorRequest, res: Respon
 router.post(
   '/generate-backup-codes',
   isAuthenticated,
-  async (req: TwoFactorRequest, res: Response) => {
+  async (req: TwoFactorRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
 
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        res.status(401).json({ error: 'Unauthorized' });
       }
 
       // Vérifier que le 2FA est activé
       const isEnabled = await TwoFactorAuthService.isTwoFactorEnabled(userId);
       if (!isEnabled) {
-        return res
+        res
           .status(400)
           .json({ error: '2FA must be enabled to generate backup codes' });
+        return;
       }
 
       // Générer les codes
@@ -210,7 +213,7 @@ router.post(
       });
     } catch (error) {
       logger.error('Error generating backup codes:', error);
-      return res.status(500).json({ error: 'Failed to generate backup codes' });
+      res.status(500).json({ error: 'Failed to generate backup codes' });
     }
   }
 );
@@ -220,7 +223,7 @@ router.post(
  * Vérifie un code TOTP durant le login
  * Body: { token } (when authenticated) or { token, userId } (for login)
  */
-router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
+router.post('/verify-token', async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     // Support both authenticated users and login-time verification
     let userId = req.user?.id;
@@ -234,7 +237,7 @@ router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
 
     if (!userId || !token) {
       logger.warn(`Missing required fields - userId: ${userId}, token: ${token ? 'provided' : 'missing'}`);
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
     }
 
     logger.info(`Verifying TOTP token for userId ${userId} (loginFlow: ${isLoginFlow})`);
@@ -243,7 +246,7 @@ router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
     const secret = await TwoFactorAuthService.getTOTPSecret(userId);
     if (!secret) {
       logger.warn(`No TOTP secret found for userId ${userId}`);
-      return res.status(400).json({ error: 'TOTP not configured for this user' });
+      res.status(400).json({ error: 'TOTP not configured for this user' });
     }
 
     logger.info(`Secret retrieved for userId ${userId} (length: ${secret.length})`);
@@ -275,7 +278,7 @@ router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
 
           if (userResult.rows.length === 0) {
             logger.warn(`User not found: ${userId}`);
-            return res.status(404).json({ error: 'User not found' });
+            res.status(404).json({ error: 'User not found' });
           }
 
           const user = userResult.rows[0];
@@ -355,7 +358,7 @@ router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
     }
   } catch (error) {
     logger.error('Error verifying TOTP token:', error);
-    return res.status(500).json({ error: 'Failed to verify TOTP token' });
+    res.status(500).json({ error: 'Failed to verify TOTP token' });
   }
 });
 
@@ -366,7 +369,7 @@ router.post('/verify-token', async (req: TwoFactorRequest, res: Response) => {
  */
 router.post(
   '/verify-backup-code',
-  async (req: TwoFactorRequest, res: Response) => {
+  async (req: TwoFactorRequest, res: Response): Promise<void> => {
     try {
       // Support both authenticated users and login-time verification
       let userId = req.user?.id;
@@ -379,7 +382,7 @@ router.post(
       }
 
       if (!userId || !code) {
-        return res.status(400).json({ error: 'Missing required fields' });
+        res.status(400).json({ error: 'Missing required fields' });
       }
 
       // Vérifier et utiliser le code de secours
@@ -407,7 +410,7 @@ router.post(
             );
 
             if (userResult.rows.length === 0) {
-              return res.status(404).json({ error: 'User not found' });
+              res.status(404).json({ error: 'User not found' });
             }
 
             const user = userResult.rows[0];
@@ -467,7 +470,7 @@ router.post(
       }
     } catch (error) {
       logger.error('Error verifying backup code:', error);
-      return res.status(500).json({ error: 'Failed to verify backup code' });
+      res.status(500).json({ error: 'Failed to verify backup code' });
     }
   }
 );
@@ -476,12 +479,12 @@ router.post(
  * GET /api/auth/2fa/history
  * Récupère l'historique des logins 2FA
  */
-router.get('/history', isAuthenticated, async (req: TwoFactorRequest, res: Response) => {
+router.get('/history', isAuthenticated, async (req: TwoFactorRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
     const history = await TwoFactorAuthService.getLoginHistory(userId, 20);
@@ -492,7 +495,7 @@ router.get('/history', isAuthenticated, async (req: TwoFactorRequest, res: Respo
     });
   } catch (error) {
     logger.error('Error getting 2FA history:', error);
-    return res.status(500).json({ error: 'Failed to get 2FA history' });
+    res.status(500).json({ error: 'Failed to get 2FA history' });
   }
 });
 

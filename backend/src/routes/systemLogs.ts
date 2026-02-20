@@ -110,7 +110,7 @@ router.get(
   handleValidationErrors,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const paginationParams = parsePaginationParams(req.query);
+      const paginationParams = parsePaginationParams(req);
 
       const logsData = await SystemLogService.getLogs({
         limit: paginationParams.pageSize,

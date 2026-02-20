@@ -33,19 +33,5 @@ export const LazySubnettingPage = withLazyLoading(
   }
 );
 
-export const LazyLogsPage = withLazyLoading(
-  () => import('../pages/Logs'),
-  {
-    title: "Chargement des logs système...",
-    description: "Récupération et indexation des journaux système"
-  }
-);
 
-export const LazyProfilePage = withLazyLoading(
-  () => import('../pages/ProfilePage'),
-  {
-    title: "Chargement du profil utilisateur...",
-    description: "Récupération des informations et préférences utilisateur"
-  }
-);
 

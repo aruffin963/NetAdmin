@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { colors } from '../config/colors';
-import { FaRobot, FaPlus, FaPlay, FaTrash, FaClock, FaCheck, FaTimes, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { FaRobot, FaPlus, FaPlay, FaTrash, FaCheck, FaTimes, FaChartLine } from 'react-icons/fa';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { AGENTLESS_API } from '../config/api';
 import { useNotification } from '../context/NotificationContext';
 

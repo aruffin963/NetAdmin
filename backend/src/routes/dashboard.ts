@@ -231,7 +231,11 @@ router.get('/system-metrics', async (req: Request, res: Response) => {
 router.get('/activity-summary', async (req: Request, res: Response) => {
   try {
     const days = parseInt(req.query.days as string) || 7;
-    const stats = await ActivityLogService.getStats(days);
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const stats = await ActivityLogService.getStats({ startDate, endDate });
 
     res.json({
       success: true,

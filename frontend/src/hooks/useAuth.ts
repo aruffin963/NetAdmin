@@ -129,7 +129,7 @@ export const useAuth = () => {
       }
 
       if (response.success && response.data) {
-        const { user, tokens } = response.data;
+        const { user } = response.data;
         
         setAuthState({
           isAuthenticated: true,

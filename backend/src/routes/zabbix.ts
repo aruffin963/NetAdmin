@@ -78,10 +78,10 @@ router.post('/disconnect', async (req: Request, res: Response) => {
  * GET /api/zabbix/hosts
  * Récupérer tous les hôtes Zabbix
  */
-router.get('/hosts', async (req: Request, res: Response) => {
+router.get('/hosts', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!ZabbixService.isConnected()) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Zabbix not connected',
       });
@@ -110,21 +110,21 @@ router.get('/hosts', async (req: Request, res: Response) => {
 router.get('/metrics', async (_req: Request, res: Response) => {
   try {
     if (!ZabbixService.isConnected()) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Zabbix not connected',
       });
     }
 
     const metrics = await ZabbixService.getAllMetrics();
-    return res.json({
+    res.json({
       success: true,
       data: metrics,
       count: metrics.length,
     });
   } catch (error) {
     logger.error('Error fetching Zabbix metrics:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Error fetching metrics',
       error: (error as Error).message,
@@ -139,7 +139,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
 router.get('/host/:hostid/metrics', async (req: Request, res: Response) => {
   try {
     if (!ZabbixService.isConnected()) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Zabbix not connected',
       });
@@ -148,13 +148,13 @@ router.get('/host/:hostid/metrics', async (req: Request, res: Response) => {
     const { hostid } = req.params;
     const metrics = await ZabbixService.parseHostMetrics(hostid, `Host ${hostid}`);
     
-    return res.json({
+    res.json({
       success: true,
       data: metrics,
     });
   } catch (error) {
     logger.error(`Error fetching metrics for host ${req.params.hostid}:`, error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'Error fetching host metrics',
       error: (error as Error).message,
@@ -166,10 +166,10 @@ router.get('/host/:hostid/metrics', async (req: Request, res: Response) => {
  * GET /api/zabbix/host/:hostid/items
  * Récupérer les items (métriques) d'un hôte
  */
-router.get('/host/:hostid/items', async (req: Request, res: Response) => {
+router.get('/host/:hostid/items', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!ZabbixService.isConnected()) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Zabbix not connected',
       });
@@ -197,10 +197,10 @@ router.get('/host/:hostid/items', async (req: Request, res: Response) => {
  * GET /api/zabbix/item/:itemid/history
  * Récupérer l'historique d'une métrique
  */
-router.get('/item/:itemid/history', async (req: Request, res: Response) => {
+router.get('/item/:itemid/history', async (req: Request, res: Response): Promise<void> => {
   try {
     if (!ZabbixService.isConnected()) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Zabbix not connected',
       });

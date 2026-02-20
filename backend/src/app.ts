@@ -39,11 +39,15 @@ import auth2faRoutes from './routes/auth2fa';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Rate limiting
+// Rate limiting - apply only to unauthenticated routes
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // limit each IP to 1000 requests per windowMs (increased from 100)
   message: 'Too many requests from this IP, please try again later.',
+  skip: (req: any) => {
+    // Skip rate limiting for authenticated users
+    return req.user && req.user.id;
+  }
 });
 
 // Middleware

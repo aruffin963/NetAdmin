@@ -106,8 +106,8 @@ router.post('/reset-password', [
       res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array().map(err => ({
-          field: err.param,
+        errors: errors.array().map((err: any) => ({
+          field: err.param || err.path,
           message: err.msg
         })),
       });

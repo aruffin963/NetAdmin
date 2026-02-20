@@ -10,12 +10,13 @@ export const twoFactorMiddleware = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const user = (req as any).user;
 
     if (!user || !user.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
 
     // Vérifier si le 2FA est activé pour cet utilisateur
@@ -44,7 +45,7 @@ export const enforce2FAMiddleware = async (
     const user = (req as any).user;
 
     if (!user || !user.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Vérifier si le 2FA est activé
@@ -59,7 +60,7 @@ export const enforce2FAMiddleware = async (
     const session = (req as any).session;
 
     if (!session.verified2FA) {
-      return res.status(403).json({
+      res.status(403).json({
         error: '2FA verification required',
         requires2FA: true,
       });
@@ -72,7 +73,7 @@ export const enforce2FAMiddleware = async (
 
     if (now - verified2FATime > expiryTime) {
       session.verified2FA = false;
-      return res.status(403).json({
+      res.status(403).json({
         error: '2FA verification expired',
         requires2FA: true,
       });

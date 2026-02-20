@@ -13,7 +13,7 @@ import {
   TrendingUp,
   FileText,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { API_BASE_URL } from '../config/api';
 
 // ============ INTERFACES ============
@@ -780,28 +780,6 @@ const TrendIndicator = styled.span<{ direction: 'up' | 'down' | 'stable' }>`
       case 'stable': return 'rgba(107, 114, 128, 0.4)';
     }
   }});
-`;
-
-const AlertBadge = styled.span<{ severity: 'ok' | 'warning' | 'critical' }>`
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  background: ${props => {
-    switch (props.severity) {
-      case 'critical': return '#fee2e2';
-      case 'warning': return '#fef3c7';
-      default: return '#d1fae5';
-    }
-  }};
-  color: ${props => {
-    switch (props.severity) {
-      case 'critical': return '#991b1b';
-      case 'warning': return '#92400e';
-      default: return '#065f46';
-    }
-  }};
 `;
 
 const ActivityTable = styled.table`

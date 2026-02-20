@@ -190,28 +190,6 @@ const OTPInput = styled.input`
   }
 `;
 
-const LineBreak = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1.5rem 0;
-  color: ${colors.border.medium};
-
-  &::before {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: ${colors.border.light};
-  }
-
-  &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: ${colors.border.light};
-  }
-`;
-
 const FooterText = styled.p`
   text-align: center;
   color: ${colors.text.secondary};
@@ -237,7 +215,7 @@ const OTPVerificationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const usernameFromUrl = searchParams.get('username') || '';
 
-  const [username, setUsername] = useState(usernameFromUrl);
+  const [username] = useState(usernameFromUrl);
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

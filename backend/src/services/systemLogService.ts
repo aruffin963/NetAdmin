@@ -227,18 +227,20 @@ export class SystemLogService {
           error: 0,
           fatal: 0
         },
-        byType: {}
+        byType: {} as Record<string, number>
       };
 
       result.rows.forEach((row: any) => {
         stats.total += parseInt(row.count, 10);
-        if (stats.byLevel[row.log_level]) {
-          stats.byLevel[row.log_level] += parseInt(row.count, 10);
+        const logLevel = row.log_level as keyof typeof stats.byLevel;
+        if (logLevel in stats.byLevel) {
+          stats.byLevel[logLevel] += parseInt(row.count, 10);
         }
-        if (!stats.byType[row.log_type]) {
-          stats.byType[row.log_type] = 0;
+        const logType = row.log_type as string;
+        if (!stats.byType[logType]) {
+          stats.byType[logType] = 0;
         }
-        stats.byType[row.log_type] += parseInt(row.count, 10);
+        stats.byType[logType] += parseInt(row.count, 10);
       });
 
       return stats;
